@@ -1,23 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { beam } from '../lib/beam'
 
-// Minimal real-time search:
+// Real-time tick search:
 //
 //   * One <input>.
-//   * As the user types, we debounce 150ms then fire two calls in parallel:
-//       - beam.states.query   — exact-ish substring match on `name` and `slug`
-//       - beam.ticks.search   — semantic search (vector + keyword hybrid)
-//   * A request-id ref discards stale responses (last keystroke wins).
-//   * No styles — partner will own the look.
+//   * Debounced 150ms, then `beam.ticks.search` (semantic).
+//   * A request-id ref discards stale responses.
 
 const DEBOUNCE_MS = 150
-
-interface StateRow {
-  fips: string
-  code: string
-  slug: string
-  name: string
-}
 
 interface TickRow {
   id: number
@@ -28,7 +18,6 @@ interface TickRow {
 
 export function SearchBox() {
   const [q, setQ] = useState('')
-  const [states, setStates] = useState<StateRow[]>([])
   const [ticks, setTicks] = useState<TickRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +26,6 @@ export function SearchBox() {
   useEffect(() => {
     const trimmed = q.trim()
     if (!trimmed) {
-      setStates([])
       setTicks([])
       setLoading(false)
       setError(null)
@@ -49,18 +37,9 @@ export function SearchBox() {
       setLoading(true)
       setError(null)
       try {
-        const [statesRes, ticksRes] = await Promise.all([
-          beam.states.query({
-            where: {
-              $or: [{ name: { $contains: trimmed } }, { slug: { $contains: trimmed } }],
-            },
-            limit: 5,
-          }),
-          beam.ticks.search({ query: trimmed, limit: 5 }),
-        ])
-        if (id !== requestId.current) return // a newer keystroke landed
-        setStates(statesRes.rows as StateRow[])
-        setTicks((ticksRes.results ?? []).map((r) => r.metadata as TickRow))
+        const res = await beam.ticks.search({ query: trimmed, limit: 5 })
+        if (id !== requestId.current) return
+        setTicks((res.results ?? []).map((r) => r.metadata as TickRow))
       } catch (e) {
         if (id !== requestId.current) return
         setError((e as Error).message)
@@ -78,8 +57,8 @@ export function SearchBox() {
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search states or ticks…"
-        aria-label="Search states or ticks"
+        placeholder="Search ticks…"
+        aria-label="Search ticks"
         autoFocus
       />
 
@@ -90,19 +69,6 @@ export function SearchBox() {
         </p>
       )}
 
-      <h2>States</h2>
-      <ul data-testid="results-states">
-        {states.length === 0 && !loading && q.trim() && <li>(no states match)</li>}
-        {states.map((s) => (
-          <li key={s.fips}>
-            <a href={`/us/${s.slug}`}>
-              {s.name} ({s.code})
-            </a>
-          </li>
-        ))}
-      </ul>
-
-      <h2>Ticks</h2>
       <ul data-testid="results-ticks">
         {ticks.length === 0 && !loading && q.trim() && <li>(no ticks match)</li>}
         {ticks.map((t) => (

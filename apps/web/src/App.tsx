@@ -1,25 +1,29 @@
 import { SearchBox } from './components/SearchBox'
+import { Feed } from './components/Feed'
 
 export function App() {
   return (
-    <main>
-      <header>
-        <h1>Tickpedia</h1>
-        <p data-testid="tagline">
-          Ticks by region. Wild facts. How to get them off you.
-        </p>
-      </header>
+    <div className="layout">
+      <main>
+        <header>
+          <h1>Tickpedia</h1>
+          <p data-testid="tagline">
+            Ticks by region. Wild facts. How to get them off you.
+          </p>
+        </header>
 
-      <SearchBox />
+        <SearchBox />
 
-      <footer>
-        <small>
-          Open source — MIT.{' '}
-          <a href="https://github.com/" rel="noreferrer">
-            github.com/tickpedia
-          </a>
-        </small>
-      </footer>
-    </main>
+        <footer>
+          <small>
+            Open source — MIT.{' '}
+            <a href="https://github.com/" rel="noreferrer">
+              github.com/tickpedia
+            </a>
+          </small>
+        </footer>
+      </main>
+      <Feed />
+    </div>
   )
 }
