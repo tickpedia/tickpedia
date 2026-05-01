@@ -26,6 +26,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # generated/semilayer is gitignored — re-emit before any TS step.
+      # `semilayer generate` is fully local (reads sl.config.ts), no
+      # network or secrets required.
+      - run: pnpm semilayer:generate
+
       - run: pnpm typecheck
 
       - run: pnpm test
@@ -46,6 +51,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - run: pnpm semilayer:generate
 
       - run: pnpm --filter @tickpedia/e2e install-browsers
 

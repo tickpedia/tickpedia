@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'apps/web/**'
-      - 'packages/**'
+      - 'sl.config.ts'
       - 'pnpm-lock.yaml'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
@@ -30,6 +30,8 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Beam client is gitignored — emit it from sl.config.ts before build.
+      - run: pnpm semilayer:generate
       - run: pnpm --filter @tickpedia/web build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
