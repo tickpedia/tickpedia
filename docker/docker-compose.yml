@@ -1,0 +1,32 @@
+# Local Postgres for development. Production uses Neon.
+#
+# Usage:
+#   pnpm db:up        # boot Postgres (port 5432) — see root scripts
+#   pnpm db:down
+#
+# When running locally, set DATABASE_URL in .env to:
+#   postgresql://tickpedia:tickpedia@localhost:5432/tickpedia
+#
+# When running against Neon, swap it for the Neon connection string.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tickpedia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tickpedia
+      POSTGRES_PASSWORD: tickpedia
+      POSTGRES_DB: tickpedia
+    ports:
+      - '5432:5432'
+    volumes:
+      - tickpedia_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tickpedia -d tickpedia']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  tickpedia_pg_data:

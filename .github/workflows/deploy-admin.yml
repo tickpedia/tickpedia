@@ -1,0 +1,39 @@
+name: Deploy apps/admin to Vercel
+
+# Vercel's GitHub integration handles the actual deploy when connected
+# to the repo. This workflow exists so the admin path is gated by tests
+# (and so the build runs in CI alongside everything else). Once you've
+# wired Vercel to the repo, you can either:
+#   - rely on Vercel's auto-deploy (recommended) and remove this file, or
+#   - keep this file and add the official Vercel Action with a token to
+#     enforce "tests must pass" before deploy.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/admin/**'
+      - 'packages/**'
+      - 'db/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-admin.yml'
+  workflow_dispatch:
+
+jobs:
+  preflight:
+    name: Build admin (sanity check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @tickpedia/admin build
+        env:
+          # Build-time public values. Real secrets live in Vercel.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          ADMIN_ALLOWED_EMAILS: ${{ secrets.ADMIN_ALLOWED_EMAILS }}

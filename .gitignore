@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+.next/
+.turbo/
+.vercel/
+out/
+
+.claude
+
+# coverage
+coverage/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# generated
+generated/semilayer/
+!generated/semilayer/.gitkeep
+!generated/semilayer/README.md
+
+# misc
+.DS_Store
+*.log
+.idea/
+.vscode/
+playwright-report/
+test-results/
+
+# semilayer
+.semilayerrc

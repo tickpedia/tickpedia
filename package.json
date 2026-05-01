@@ -1,0 +1,53 @@
+{
+  "name": "tickpedia",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev --concurrency=20",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:coverage": "turbo test:coverage",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "e2e": "pnpm --filter @tickpedia/e2e test:e2e",
+    "e2e:ui": "pnpm --filter @tickpedia/e2e test:e2e:ui",
+    "semilayer:generate": "semilayer generate --out ./generated/semilayer",
+    "semilayer:push": "semilayer push",
+    "db:up": "docker compose -f docker/docker-compose.yml up -d --wait",
+    "db:down": "docker compose -f docker/docker-compose.yml down",
+    "db:logs": "docker compose -f docker/docker-compose.yml logs -f postgres",
+    "db:generate": "pnpm --filter @tickpedia/db db:generate",
+    "db:migrate": "pnpm --filter @tickpedia/db db:migrate",
+    "db:seed": "pnpm --filter @tickpedia/db db:seed",
+    "db:setup:local": "pnpm db:up && cross-env DATABASE_URL=postgresql://tickpedia:tickpedia@localhost:5432/tickpedia pnpm --filter @tickpedia/db run db:migrate && cross-env DATABASE_URL=postgresql://tickpedia:tickpedia@localhost:5432/tickpedia pnpm --filter @tickpedia/db run db:seed",
+    "db:setup:remote": "pnpm --filter @tickpedia/db db:migrate && pnpm --filter @tickpedia/db db:seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@semilayer/cli": "^1.17.1",
+    "@semilayer/client": "^1.9.1",
+    "@semilayer/core": "^0.1.29",
+    "@types/node": "^22.10.5",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "engines": {
+    "node": ">=20.13.0",
+    "pnpm": ">=10.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@clerk/shared",
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
+}
