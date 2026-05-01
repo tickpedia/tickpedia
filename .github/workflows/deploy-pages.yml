@@ -33,6 +33,11 @@ jobs:
       # Beam client is gitignored — emit it from sl.config.ts before build.
       - run: pnpm semilayer:generate
       - run: pnpm --filter @tickpedia/web build
+        env:
+          # Vite inlines env vars matching `envPrefix` at build time.
+          # Without this, the bundle ships `apiKey: ''` and every Beam
+          # call lands as `Authorization: Bearer` (empty).
+          NEXT_PUBLIC_SEMILAYER_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_SEMILAYER_PUBLIC_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
