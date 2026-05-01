@@ -74,6 +74,8 @@ pnpm semilayer:generate   # regen generated/semilayer
 - **`.env` is gitignored.** `.env.example` is the source of truth for
   what's expected. Add to it whenever you add a key.
 - **No emojis** in code or docs unless explicitly asked.
+- **No `Co-Authored-By` trailer on commits.** Plain message bodies
+  only — no AI / agent attribution lines.
 
 ## Bootstrap
 

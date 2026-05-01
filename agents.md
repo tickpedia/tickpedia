@@ -62,6 +62,9 @@ thank you.
   what's expected. Add to it whenever you add a key.
 - **Tests next to code.** `__tests__/` under each `src/` package.
 - **No emojis in code or docs unless asked.**
+- **No `Co-Authored-By` trailer on commits.** Write the message and
+  stop. AI / agent attribution lines do not belong in this repo's
+  history.
 
 ## Repo layout
 
