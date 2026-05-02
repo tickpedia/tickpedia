@@ -15,6 +15,7 @@
   "dependencies": {
     "@semilayer/client": "^1.9.1",
     "@semilayer/core": "^0.1.29",
+    "@tickpedia/ui": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

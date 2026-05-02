@@ -8,18 +8,30 @@
   "exports": {
     ".": "./src/index.ts",
     "./tick-art": "./src/tick-art.ts",
-    "./TickArt": "./src/TickArt.tsx"
+    "./TickArt": "./src/TickArt.tsx",
+    "./TickCrest": "./src/TickCrest/index.tsx",
+    "./Wordmark": "./src/Wordmark/index.tsx"
   },
   "scripts": {
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "peerDependencies": {
     "react": "^18 || ^19"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^3.0.0",
+    "jsdom": "^25.0.1",
     "react": "^19.0.0",
-    "typescript": "^5.7.3"
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
   }
 }
