@@ -8,10 +8,21 @@
 # project on the default port doesn't fight us. The container's internal
 # port is unchanged at 5432.
 #
+# Top-level `name:` pins the compose project name. Without it, compose
+# auto-derives the project name from the parent directory (`docker`),
+# which collides with any other repo whose compose file also lives in
+# a folder named `docker/` — `docker compose up` over there will then
+# see this project's `postgres` service, decide it's "wrong shape," and
+# recreate the container (potentially under a different name + port).
+# Explicit `name: tickpedia` namespaces this stack so it can't be
+# clobbered by a sibling project's compose run.
+#
 # When running locally, set DATABASE_URL in .env to:
 #   postgresql://tickpedia:tickpedia@localhost:15432/tickpedia
 #
 # When running against Neon, swap it for the Neon connection string.
+
+name: tickpedia
 
 services:
   postgres:
@@ -34,3 +45,13 @@ services:
 
 volumes:
   tickpedia_pg_data:
+    # Pin to the legacy physical volume name so the project rename
+    # above (`name: tickpedia`) doesn't orphan dev DBs that were
+    # created under the old auto-derived project name `docker`.
+    # `external: true` tells compose this volume is managed outside the
+    # project — it won't try to recreate it or check ownership labels.
+    # First-time devs need a one-line bootstrap:
+    #   docker volume create docker_tickpedia_pg_data
+    # (db:up runs that automatically — see root scripts.)
+    name: docker_tickpedia_pg_data
+    external: true
