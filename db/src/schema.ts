@@ -86,9 +86,10 @@ export const counties = pgTable(
 
 // ─── Tick × State (editorial prevalence + peak months) ────────────────
 
-// Surrogate id is here because SemiLayer lenses require exactly one
-// primary-key field — composite PKs aren't supported. The natural key
-// `(tick_id, state_fips)` is enforced as a unique index.
+// Surrogate `id` keeps this table on the same single-PK shape as the
+// rest of the schema; the natural key `(tick_id, state_fips)` is
+// enforced as a unique index so upserts in the admin / ingest paths
+// stay idempotent.
 export const tickState = pgTable(
   'tick_state',
   {

@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
+import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import TickForm from './TickForm'
 
 function slugify(s: string): string {
@@ -51,6 +52,7 @@ async function upsertTick(form: FormData): Promise<{ ok: boolean; error?: string
         updatedAt: sql`now()`,
       },
     })
+  await notifySemilayer('ticks')
   revalidatePath('/content/ticks')
   return { ok: true }
 }

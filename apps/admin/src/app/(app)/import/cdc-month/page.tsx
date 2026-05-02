@@ -8,6 +8,7 @@
 import { connect } from '@tickpedia/db'
 import { ingestDiseaseMonth, type DiseaseMonthRow, type IngestSummary } from '@tickpedia/db/ingest'
 import { parseXlsx } from '../../../../lib/xlsx'
+import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import BasicImportForm from '../../../components/BasicImportForm'
 
 async function importAction(
@@ -68,7 +69,9 @@ async function importAction(
   }
 
   const db = connect(process.env.DATABASE_URL)
-  return ingestDiseaseMonth(db, rows)
+  const summary = await ingestDiseaseMonth(db, rows)
+  if (summary.applied > 0) await notifySemilayer('diseaseMonth')
+  return summary
 }
 
 export default function Page() {

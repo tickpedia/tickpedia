@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
+import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import TechniqueForm from './TechniqueForm'
 
 function slugify(s: string): string {
@@ -36,6 +37,7 @@ async function upsertTechnique(form: FormData): Promise<{ ok: boolean; error?: s
         updatedAt: sql`now()`,
       },
     })
+  await notifySemilayer('removalTechniques')
   revalidatePath('/content/techniques')
   return { ok: true }
 }

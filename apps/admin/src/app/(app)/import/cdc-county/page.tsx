@@ -12,6 +12,7 @@ import { connect, schema } from '@tickpedia/db'
 import { ingestCdcCountyYear } from '@tickpedia/db/ingest'
 import type { RawCountyRow, IngestSummary } from '@tickpedia/db/ingest'
 import { parseXlsx } from '../../../../lib/xlsx'
+import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import ImportForm from './ImportForm'
 
 async function importAction(_prev: IngestSummary | null, form: FormData): Promise<IngestSummary | null> {
@@ -34,7 +35,9 @@ async function importAction(_prev: IngestSummary | null, form: FormData): Promis
   })
 
   const db = connect(process.env.DATABASE_URL)
-  return ingestCdcCountyYear(db, { rows, year })
+  const summary = await ingestCdcCountyYear(db, { rows, year })
+  if (summary.applied > 0) await notifySemilayer('diseaseCountyYear')
+  return summary
 }
 
 export default async function Page() {

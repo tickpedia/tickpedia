@@ -19,6 +19,7 @@ import {
   type IngestSummary,
 } from '@tickpedia/db/ingest'
 import { parseXlsx, parseXlsxAtRow } from '../../../../lib/xlsx'
+import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import TickCountyImportForm from './TickCountyImportForm'
 
 interface KnownTick {
@@ -77,6 +78,7 @@ async function importAction(
     const db = connect(process.env.DATABASE_URL)
     const summary = await ingestTickCounty(db, { rows: parsed, keepNoRecords })
     summary.errors.unshift(...errors.map((e) => ({ row: e.row, reason: e.reason, raw: e.raw })))
+    if (summary.applied > 0) await notifySemilayer('tickCounty')
     return summary
   }
 
@@ -129,6 +131,7 @@ async function importAction(
   const db = connect(process.env.DATABASE_URL)
   const summary = await ingestTickCounty(db, { rows: parsed, keepNoRecords })
   summary.errors.unshift(...errors.map((e) => ({ row: e.row, reason: e.reason, raw: e.raw })))
+  if (summary.applied > 0) await notifySemilayer('tickCounty')
   return summary
 }
 

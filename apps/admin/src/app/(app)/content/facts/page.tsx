@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import { connect, schema } from '@tickpedia/db'
 import { desc, eq } from 'drizzle-orm'
+import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import FactForm from './FactForm'
 
 async function addFact(form: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -14,6 +15,7 @@ async function addFact(form: FormData): Promise<{ ok: boolean; error?: string }>
 
   const db = connect(process.env.DATABASE_URL)
   await db.insert(schema.wildFacts).values({ body, citationUrl, tickId })
+  await notifySemilayer('wildFacts')
   revalidatePath('/content/facts')
   return { ok: true }
 }
@@ -24,6 +26,7 @@ async function deleteFact(form: FormData): Promise<void> {
   if (!Number.isInteger(id)) return
   const db = connect(process.env.DATABASE_URL)
   await db.delete(schema.wildFacts).where(eq(schema.wildFacts.id, id))
+  await notifySemilayer('wildFacts')
   revalidatePath('/content/facts')
 }
 
