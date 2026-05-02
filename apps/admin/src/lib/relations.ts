@@ -7,7 +7,7 @@
 // the Neon HTTP driver doesn't support arbitrary callbacks — and
 // admin-side concurrency on a single editor is theoretical anyway.
 
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core'
 import type { Db } from '@tickpedia/db'
 
@@ -41,14 +41,19 @@ export async function setRelations<TJoin extends PgTable>(
   }
 
   if (toInsert.length > 0) {
-    const values = toInsert.map((id) => ({
-      [spec.parentColumn.name]: parentId,
-      [spec.childColumn.name]: id,
-    }))
-    // The values shape is column-name keyed (we don't know the table
-    // type at the call-site), so cast to bypass Drizzle's strict
-    // per-column type inference.
-    await db.insert(spec.table).values(values as never)
+    // Build the INSERT with a raw sql template. Drizzle's `.values()`
+    // wants the schema's TS property names (`tickId`), but at this
+    // call-site we only have the column references — and their `.name`
+    // is the DB column name (`tick_id`). Mapping TS-name → DB-name in
+    // userland is brittle; sql template-interpolating the column refs
+    // produces the correct `"tick_id"` identifiers without round-trip.
+    const rows = sql.join(
+      toInsert.map((id) => sql`(${parentId}, ${id})`),
+      sql`, `,
+    )
+    await db.execute(
+      sql`insert into ${spec.table} (${spec.parentColumn}, ${spec.childColumn}) values ${rows}`,
+    )
   }
 }
 
