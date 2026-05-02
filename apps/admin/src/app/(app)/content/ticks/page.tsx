@@ -1,61 +1,9 @@
-import { revalidatePath } from 'next/cache'
-import { sql } from 'drizzle-orm'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { connect, schema } from '@tickpedia/db'
-import { notifySemilayer } from '../../../../lib/semilayer-notify'
+import { TickArt, hasTickArt } from '@tickpedia/ui'
 import TickForm from './TickForm'
-
-function slugify(s: string): string {
-  return s
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-async function upsertTick(form: FormData): Promise<{ ok: boolean; error?: string }> {
-  'use server'
-  const commonName = String(form.get('commonName') ?? '').trim()
-  const scientificName = String(form.get('scientificName') ?? '').trim()
-  const slugInput = String(form.get('slug') ?? '').trim()
-  const dangerLevel = String(form.get('dangerLevel') ?? 'low') as 'low' | 'medium' | 'high'
-  const heroPhotoUrl = String(form.get('heroPhotoUrl') ?? '').trim() || null
-  const diseasesRaw = String(form.get('diseases') ?? '').trim()
-  const diseases = diseasesRaw
-    .split(/[,\n]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-  const slug = slugInput || slugify(scientificName || commonName)
-
-  if (!commonName) return { ok: false, error: 'Common name required.' }
-  if (!scientificName) return { ok: false, error: 'Scientific name required.' }
-  if (!slug) return { ok: false, error: 'Slug could not be derived.' }
-
-  const db = connect(process.env.DATABASE_URL)
-  await db
-    .insert(schema.ticks)
-    .values({
-      slug,
-      commonName,
-      scientificName,
-      dangerLevel,
-      heroPhotoUrl,
-      diseases,
-    })
-    .onConflictDoUpdate({
-      target: schema.ticks.slug,
-      set: {
-        commonName: sql`EXCLUDED.common_name`,
-        scientificName: sql`EXCLUDED.scientific_name`,
-        dangerLevel: sql`EXCLUDED.danger_level`,
-        heroPhotoUrl: sql`EXCLUDED.hero_photo_url`,
-        diseases: sql`EXCLUDED.diseases`,
-        updatedAt: sql`now()`,
-      },
-    })
-  await notifySemilayer('ticks')
-  revalidatePath('/content/ticks')
-  return { ok: true }
-}
+import { upsertTick } from './actions'
 
 export default async function Page() {
   const db = connect(process.env.DATABASE_URL)
@@ -67,6 +15,9 @@ export default async function Page() {
       scientificName: schema.ticks.scientificName,
       dangerLevel: schema.ticks.dangerLevel,
       diseases: schema.ticks.diseases,
+      heroHeadColor: schema.ticks.heroHeadColor,
+      heroBodyColor: schema.ticks.heroBodyColor,
+      heroLegColor: schema.ticks.heroLegColor,
       updatedAt: schema.ticks.updatedAt,
     })
     .from(schema.ticks)
@@ -87,23 +38,42 @@ export default async function Page() {
         <table>
           <thead>
             <tr>
+              <th style={{ width: 56 }}>Art</th>
               <th>Common name</th>
               <th>Scientific</th>
-              <th>Slug</th>
               <th>Danger</th>
               <th>Diseases</th>
               <th>Updated</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {ticks.map((t) => (
               <tr key={t.id}>
+                <td>
+                  {hasTickArt({
+                    headColor: t.heroHeadColor,
+                    bodyColor: t.heroBodyColor,
+                    legColor: t.heroLegColor,
+                  }) ? (
+                    <TickArt
+                      colors={{
+                        headColor: t.heroHeadColor,
+                        bodyColor: t.heroBodyColor,
+                        legColor: t.heroLegColor,
+                      }}
+                      size={40}
+                    />
+                  ) : (
+                    <span className="muted" style={{ fontSize: '0.75rem' }}>—</span>
+                  )}
+                </td>
                 <td>{t.commonName}</td>
                 <td>
                   <em>{t.scientificName}</em>
-                </td>
-                <td>
-                  <code>{t.slug}</code>
+                  <div className="muted" style={{ fontSize: '0.75rem' }}>
+                    <code>{t.slug}</code>
+                  </div>
                 </td>
                 <td>
                   <span
@@ -121,6 +91,15 @@ export default async function Page() {
                 </td>
                 <td className="muted">{t.diseases.join(', ') || '—'}</td>
                 <td>{t.updatedAt.toISOString().slice(0, 10)}</td>
+                <td>
+                  <Link
+                    href={`/content/ticks/${t.slug}` as Route}
+                    className="button secondary"
+                    style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                  >
+                    Edit
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -38,6 +38,12 @@ export const ticks = pgTable(
     commonName: text('common_name').notNull(),
     scientificName: text('scientific_name').notNull(),
     heroPhotoUrl: text('hero_photo_url'),
+    // Hero art parameters. Admin picks colors; the public site renders
+    // the SVG from these. Nullable so existing rows stay valid until an
+    // admin opens the editor.
+    heroHeadColor: text('hero_head_color'),
+    heroBodyColor: text('hero_body_color'),
+    heroLegColor: text('hero_leg_color'),
     dangerLevel: dangerLevel('danger_level').notNull().default('low'),
     diseases: text('diseases')
       .array()

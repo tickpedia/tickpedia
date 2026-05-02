@@ -16,9 +16,13 @@ loadEnvConfig(resolve(import.meta.dirname, '..', '..'), undefined, undefined, tr
 const config: NextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
-  // The @tickpedia/db package uses NodeNext-style `.js` imports that
-  // refer to neighboring `.ts` files. Next's webpack doesn't resolve
-  // those by default — teach it to.
+  // Workspace packages publish raw TS / TSX (no build step). Next's
+  // SWC compiler skips node_modules by default — opt these in so .ts
+  // and .tsx files compile.
+  transpilePackages: ['@tickpedia/ui'],
+  // The @tickpedia/db and @tickpedia/ui packages use NodeNext-style
+  // `.js` imports that refer to neighboring `.ts` / `.tsx` files.
+  // Next's webpack doesn't resolve those by default — teach it to.
   webpack: (config) => {
     config.resolve = config.resolve ?? {}
     config.resolve.extensionAlias = {

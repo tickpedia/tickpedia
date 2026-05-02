@@ -39,6 +39,10 @@ const NAV: NavSection[] = [
     items: [{ href: '/', label: 'Dashboard' }],
   },
   {
+    heading: 'Data',
+    items: [{ href: '/data', label: 'Locations' }],
+  },
+  {
     heading: 'Imports',
     items: [
       { href: '/import/cdc-county', label: 'CDC disease counts' },
