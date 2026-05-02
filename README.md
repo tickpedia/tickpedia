@@ -9,13 +9,13 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=nodedotjs&logoColor=white)](./.nvmrc)
 [![pnpm](https://img.shields.io/badge/pnpm-10-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](./tsconfig.base.json)
-[![Powered by SemiLayer](https://img.shields.io/badge/powered%20by-SemiLayer-8B5CF6)](https://github.com/semilayer/semilayer)
+[![Powered by SemiLayer](https://img.shields.io/badge/powered%20by-SemiLayer-8B5CF6)](https://semilayer.com)
 [![DB: Neon](https://img.shields.io/badge/DB-Neon%20Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.tech)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 A weekend-scale, fully open-source web app — ticks by region, wild facts,
-and how to remove them. Built in public to dogfood
-[SemiLayer](https://github.com/semilayer/semilayer).
+and how to remove them. Built in public on top of
+[SemiLayer](https://semilayer.com).
 
 </div>
 
@@ -31,8 +31,9 @@ pnpm --filter @tickpedia/web dev    # → http://localhost:5173
 ```
 
 That's the whole thing. The local Postgres comes seeded with **51
-states**, **3,144 counties**, and **9 canonical CDC tick-borne
-diseases**, plus a sample tick.
+states**, **3,146 counties**, **10 canonical CDC tick-borne diseases**,
+**6 canonical tick species**, and a starter wild fact + removal
+technique.
 
 > Need the admin panel or remote SemiLayer? See
 > [`skills/local-setup.md`](./skills/local-setup.md) for the longer
@@ -112,8 +113,8 @@ I do X". Start there.
 
 ## Acknowledgements
 
-- [SemiLayer](https://github.com/semilayer/semilayer) for the read-side
-  intelligence layer.
+- [SemiLayer](https://semilayer.com) for the read-side intelligence
+  layer.
 - [Neon](https://neon.tech) for branchable Postgres + free per-PR DBs.
 - [FCC FIPS reference](https://transition.fcc.gov/oet/info/maps/census/fips/fips.txt)
   for the state + county seed data.

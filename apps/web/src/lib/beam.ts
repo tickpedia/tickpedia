@@ -3,9 +3,9 @@ import { createBeam } from '@/beam'
 // Singleton — one Beam per browser tab. The public key (pk_prod_*) is
 // safe to embed; access rules on the SemiLayer side gate what it can do.
 //
-// The service URL is overridable for local dogfooding against
-// http://localhost:3001 — leave it unset in prod and it defaults to the
-// hosted API.
+// The service URL is overridable for pointing at a local instance at
+// http://localhost:3001 — leave it unset in prod and it defaults to
+// the hosted API.
 
 const apiKey = import.meta.env.NEXT_PUBLIC_SEMILAYER_PUBLIC_KEY as string | undefined
 const baseUrl =

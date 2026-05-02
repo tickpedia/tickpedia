@@ -44,6 +44,7 @@ just do them. Each skill is a self-contained markdown file under `skills/`.
 
 | Skill | When to use |
 |---|---|
+| [ship-a-step](./skills/ship-a-step.md) | "Ship step N" / "execute step N" — full-autonomy persona for shipping a planned step end-to-end (build, test, e2e, db sync, push) |
 | [local-setup](./skills/local-setup.md) | Fresh clone → working dev loop. Start here. |
 | [add-a-page](./skills/add-a-page.md) | Add a new route to `apps/web` end-to-end (route, test, e2e) |
 | [add-a-lens](./skills/add-a-lens.md) | Expose a new table to the public site through a SemiLayer lens |

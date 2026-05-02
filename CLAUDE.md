@@ -85,6 +85,8 @@ That file is the human checklist for going from "fresh clone" to
 
 ## Skills
 
-`agents.md` indexes a `skills/` folder of self-contained how-tos
-(`add-a-page`, `add-a-lens`, `add-a-table`, `run-e2e`). When a
-workflow shows up twice, write a skill for it.
+`agents.md` indexes the `skills/` folder of self-contained how-tos.
+The full table lives there; **`ship-a-step`** is the entry point for
+"execute step N" — full-autonomy persona for shipping a planned step
+end-to-end (build, tests, e2e, db sync, push). When a workflow shows
+up twice, write a skill for it.
