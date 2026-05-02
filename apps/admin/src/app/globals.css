@@ -101,11 +101,10 @@ label { display: block; margin-bottom: 0.25rem; font-weight: 500; color: var(--f
 
 /* ───── Shell ─────────────────────────────────────────────────── */
 
-.shell {
-  display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
-  min-height: 100vh;
-}
+/* Sidebar is fixed on the left; main reserves space with padding-left.
+ * Avoids grid/sticky blow-out where wide content (tables, long URLs)
+ * could push the main column off-screen. */
+.shell { min-height: 100vh; }
 
 .sidebar {
   background: var(--bg-sidebar);
@@ -114,10 +113,13 @@ label { display: block; margin-bottom: 0.25rem; font-weight: 500; color: var(--f
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  width: var(--sidebar-w);
   height: 100vh;
   overflow-y: auto;
+  z-index: 30;
 }
 
 .sidebar h1 {
@@ -195,9 +197,10 @@ label { display: block; margin-bottom: 0.25rem; font-weight: 500; color: var(--f
 }
 
 .main {
-  padding: 1.5rem 2rem;
-  max-width: 1100px;
+  padding: 1.5rem 2rem 1.5rem calc(var(--sidebar-w) + 2rem);
+  max-width: calc(1100px + var(--sidebar-w) + 2rem);
   width: 100%;
+  min-width: 0;
 }
 
 .topbar {
@@ -222,10 +225,7 @@ label { display: block; margin-bottom: 0.25rem; font-weight: 500; color: var(--f
 }
 
 @media (max-width: 800px) {
-  .shell { grid-template-columns: 1fr; }
   .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
     width: 280px;
     transform: translateX(-100%);
     transition: transform 180ms ease;
@@ -242,7 +242,7 @@ label { display: block; margin-bottom: 0.25rem; font-weight: 500; color: var(--f
     z-index: 40;
   }
   .scrim[data-open='true'] { display: block; }
-  .main { padding: 1.25rem 1rem; }
+  .main { padding: 1.25rem 1rem; max-width: 100%; }
 }
 
 /* ───── Cards / lists / tables ─────────────────────────────────── */
