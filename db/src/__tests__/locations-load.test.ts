@@ -70,4 +70,31 @@ describe('loadLocations (real FCC data)', () => {
     expect(autauga).toBeDefined()
     expect(autauga?.slug).toBe('autauga')
   })
+
+  it('joins centroid lat/lon onto current FIPS counties (>99% coverage)', () => {
+    // The FCC FIPS file we ship is pre-2001 and carries some legacy
+    // entries that no longer exist as current counties (Connecticut's
+    // 2022 planning-region reorg, renamed Alaska census areas, dissolved
+    // Virginia independent cities, Yellowstone National Park, legacy
+    // Miami-Dade FIPS). Those legitimately have no current centroid;
+    // surveillance data uses current FIPS so it's fine.
+    let withCoords = 0
+    for (const c of counties) {
+      if (c.latitude !== null && c.longitude !== null) {
+        withCoords++
+        expect(c.latitude).toBeGreaterThanOrEqual(-90)
+        expect(c.latitude).toBeLessThanOrEqual(90)
+        expect(c.longitude).toBeGreaterThanOrEqual(-180)
+        expect(c.longitude).toBeLessThanOrEqual(180)
+      }
+    }
+    expect(withCoords / counties.length).toBeGreaterThan(0.99)
+  })
+
+  it('Autauga County (01001) gets the expected Census centroid', () => {
+    // From 2024_Gaz_counties_national.txt — locks in the wire format.
+    const autauga = counties.find((c) => c.fips === '01001')
+    expect(autauga?.latitude).toBeCloseTo(32.532237, 4)
+    expect(autauga?.longitude).toBeCloseTo(-86.64644, 4)
+  })
 })

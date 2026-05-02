@@ -225,6 +225,10 @@ export default defineConfig({
         stateFips: { type: 'text', from: 'state_fips' },
         countyName: { type: 'text', from: 'county_name', searchable: { weight: 3 } },
         slug: { type: 'text', searchable: true },
+        // Census internal-point centroid. Hopped via the diseaseCountyYear
+        // / tickCounty `county` relations to power H3-bucketed heatmaps.
+        latitude: { type: 'number' },
+        longitude: { type: 'number' },
       },
       relations: {
         state: { lens: 'states', kind: 'belongsTo', on: { stateFips: 'fips' } },
@@ -521,6 +525,35 @@ export default defineConfig({
           },
           precompute: { onlyAdditive: true, refreshInterval: '15m' },
         },
+        // Border-agnostic risk heatmap: cumulative cases bucketed into
+        // H3 resolution-4 hexagons (~1,770 km² each, roughly metro
+        // area). The dimension hops `through: 'county'` so the bucket
+        // can read latitude/longitude off the joined counties row.
+        // Strategy will be 'through' (relation traversal does the geo
+        // encoding service-side).
+        densityByH3: {
+          candidates: {},
+          dimensions: [
+            {
+              field: 'latitude',
+              through: 'county',
+              as: 'h3Cell',
+              bucket: {
+                type: 'h3',
+                resolution: 4,
+                latField: 'latitude',
+                lngField: 'longitude',
+              },
+            },
+          ],
+          measures: {
+            total: { agg: 'sum', column: 'count' },
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+            diseases: { agg: 'count_distinct', column: 'diseaseId' },
+          },
+          sort: [{ measure: 'total', dir: 'desc' }],
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
         // Top 100 counties by cumulative case count, any disease.
         // "Worst tick counties in America" leaderboard.
         countyHotspots: {
@@ -543,6 +576,7 @@ export default defineConfig({
           casesByYear: 'public',
           casesByState: 'public',
           countyHotspots: 'public',
+          densityByH3: 'public',
         },
       },
     },

@@ -122,6 +122,7 @@ const ANALYZE_RUN_CHECKS: readonly AnalyzeRunCheck[] = [
   { lens: 'diseaseCountyYear', name: 'casesByYear' },
   { lens: 'diseaseCountyYear', name: 'casesByState', expectedStrategy: 'through' },
   { lens: 'diseaseCountyYear', name: 'countyHotspots' },
+  { lens: 'diseaseCountyYear', name: 'densityByH3', expectedStrategy: 'through' },
   { lens: 'diseaseMonth', name: 'seasonality', emptyOk: true },
 ] as const
 

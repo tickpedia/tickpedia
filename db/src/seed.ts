@@ -50,10 +50,24 @@ if (seedStates.length > 0) {
 console.log(`states: ${seedStates.length} rows`)
 
 // Counties is ~3,000 rows — chunk to keep the SQL statement size sane.
+// Upsert (not DoNothing) so re-seeding fills in centroid lat/lon on
+// rows that pre-date the geo column.
 const CHUNK = 500
 for (let i = 0; i < seedCounties.length; i += CHUNK) {
   const chunk = seedCounties.slice(i, i + CHUNK)
-  await db.insert(counties).values(chunk).onConflictDoNothing({ target: counties.fips })
+  await db
+    .insert(counties)
+    .values(chunk)
+    .onConflictDoUpdate({
+      target: counties.fips,
+      set: {
+        stateFips: sql`EXCLUDED.state_fips`,
+        countyName: sql`EXCLUDED.county_name`,
+        slug: sql`EXCLUDED.slug`,
+        latitude: sql`EXCLUDED.latitude`,
+        longitude: sql`EXCLUDED.longitude`,
+      },
+    })
 }
 console.log(`counties: ${seedCounties.length} rows`)
 

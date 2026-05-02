@@ -11,9 +11,17 @@
 // actually seen in source data, and prefer leaving the old FIPS in
 // place (so historical rows don't FK-fail) rather than renaming.
 
-import type { SeedCounty } from './index.js'
+// Geo coords (latitude / longitude) are not on this list — the loader
+// joins each entry to the Census Gazetteer by FIPS at load time.
 
-export const EXTRA_COUNTIES: readonly SeedCounty[] = [
+export interface ExtraCounty {
+  fips: string
+  stateFips: string
+  countyName: string
+  slug: string
+}
+
+export const EXTRA_COUNTIES: readonly ExtraCounty[] = [
   // CO — Broomfield split off from Adams/Boulder/Jefferson/Weld in 2001.
   { fips: '08014', stateFips: '08', countyName: 'Broomfield County', slug: 'broomfield' },
 

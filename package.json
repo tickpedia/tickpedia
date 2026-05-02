@@ -27,9 +27,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
-    "@semilayer/cli": "^1.17.1",
-    "@semilayer/client": "^1.9.1",
-    "@semilayer/core": "^0.1.29",
+    "@semilayer/cli": "^1.17.2",
+    "@semilayer/client": "^1.9.2",
+    "@semilayer/core": "^0.1.30",
     "@types/node": "^22.10.5",
     "cross-env": "^7.0.3",
     "eslint": "^9.18.0",

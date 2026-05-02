@@ -22,7 +22,7 @@
 // stable.
 
 import { sql } from 'drizzle-orm'
-import { pgTable, serial, text, integer, timestamp, pgEnum, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, serial, text, integer, doublePrecision, timestamp, pgEnum, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const dangerLevel = pgEnum('danger_level', ['low', 'medium', 'high'])
 export const prevalence = pgEnum('prevalence', ['low', 'medium', 'high'])
@@ -79,6 +79,11 @@ export const counties = pgTable(
       .references(() => states.fips, { onDelete: 'cascade' }),
     countyName: text('county_name').notNull(), // 'Essex County' / 'Baltimore city'
     slug: text('slug').notNull(), // 'essex' / 'baltimore-city'
+    // Internal-point centroid from the Census Gazetteer. Lets the read
+    // layer bucket county-keyed facts into H3 / geohash cells for
+    // border-agnostic heatmaps.
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
   },
   (t) => ({
     // Slugs are unique *within a state*. Adams County exists in many.
