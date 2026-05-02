@@ -235,7 +235,35 @@ export default defineConfig({
           defaultIncludeLimit: 500,
         },
       },
-      grants: { search: 'public', query: 'public' },
+      feeds: {
+        // Counties ranked by cumulative tick-borne disease load. Powers
+        // /counties?sort=risk without a custom query. Engagement aggregates
+        // over all reports (no SemiLayer window token large enough for
+        // yearly CDC data; linear decay keeps older years quieter).
+        byDiseaseLoad: {
+          // counties is static FIPS data with no change-tracking column,
+          // so the candidate pool comes from the embeddings index (every
+          // county has an embedding via its searchable countyName + slug).
+          // Engagement then ranks by cumulative CDC report count.
+          candidates: { from: 'embeddings', limit: 5000 },
+          rank: {
+            engagement: {
+              weight: 1,
+              lens: 'diseaseCountyYear',
+              relation: 'diseaseStats',
+              aggregate: 'sum',
+              column: 'count',
+              decay: 'linear',
+            },
+          },
+          pagination: { pageSize: 50 },
+        },
+      },
+      grants: {
+        search: 'public',
+        query: 'public',
+        feed: { byDiseaseLoad: 'public' },
+      },
     },
 
     // ─── Diseases (now searchable on slug + display + aliases) ──────
@@ -280,12 +308,43 @@ export default defineConfig({
           },
           pagination: { excludeIds: 'context.seedRecordId' },
         },
+        // "Diseases on the rise" — engagement = sum of CDC report counts
+        // through the disease's countyStats relation. Linear decay
+        // attenuates older years so a 1995 spike doesn't bury a current
+        // surge; the engagement is unwindowed because CDC drops are
+        // yearly and short windows would zero out most of the signal.
+        trending: {
+          candidates: { from: 'recent', limit: 200 },
+          rank: {
+            engagement: {
+              weight: 1,
+              lens: 'diseaseCountyYear',
+              relation: 'countyStats',
+              aggregate: 'sum',
+              column: 'count',
+              decay: 'linear',
+            },
+          },
+          pagination: { pageSize: 10, dedup: { by: 'sourceRowId' } },
+        },
+      },
+      analyses: {
+        // Editorial: how stale is each disease's surveillance data?
+        // Tiny lens (~20 diseases), no precompute. Ungranted on purpose
+        // — admin-server-only via the service key.
+        recencyOfData: {
+          candidates: {},
+          dimensions: [{ field: 'id' }],
+          measures: {
+            lastImport: { agg: 'max', column: 'updatedAt' },
+          },
+        },
       },
       grants: {
         search: 'public',
         similar: 'public',
         query: 'public',
-        feed: { relatedTo: 'public' },
+        feed: { relatedTo: 'public', trending: 'public' },
       },
     },
 
@@ -341,11 +400,64 @@ export default defineConfig({
           rank: { recency: { weight: 1, halfLife: '30d' } },
           pagination: { pageSize: 50, dedup: { by: 'sourceRowId' } },
         },
+        // "Counties where this tick just flipped to established." News
+        // ticker for the tick-spread page. CDC drops are yearly, so the
+        // recency decay mostly orders rows imported in the same week.
+        recentlyEstablished: {
+          candidates: { from: 'recent', limit: 500, where: { status: 'established' } },
+          rank: { recency: { weight: 1, halfLife: '30d' } },
+          pagination: { pageSize: 30, dedup: { by: 'sourceRowId' } },
+        },
+      },
+      analyses: {
+        // "Established in N counties" badge on /ticks/[slug]. Distinct
+        // count of countyFips, scoped to established rows only.
+        // Precomputed because the source lens is large; CDC imports
+        // invalidate the rollup so reads stay fresh.
+        establishedRange: {
+          candidates: { where: { status: 'established' } },
+          dimensions: [{ field: 'tickId' }],
+          measures: {
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+          },
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
+        // Choropleth-grade per-state per-tick breakdown. Frontend sums
+        // counties per tick to derive "established in N states", which
+        // is why establishedRange (above) only carries the county count.
+        establishedByState: {
+          candidates: { where: { status: 'established' } },
+          dimensions: [
+            { field: 'tickId' },
+            { field: 'stateFips', through: 'county' },
+          ],
+          measures: {
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+          },
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
+        // "Lone star is moving north" — established footprint by year.
+        spreadOverTime: {
+          candidates: { where: { status: 'established' } },
+          dimensions: [
+            { field: 'tickId' },
+            { field: 'year' },
+          ],
+          measures: {
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+          },
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
       },
       grants: {
         search: 'public',
         query: 'public',
-        feed: { latest: 'public' },
+        feed: { latest: 'public', recentlyEstablished: 'public' },
+        analyze: {
+          establishedRange: 'public',
+          establishedByState: 'public',
+          spreadOverTime: 'public',
+        },
       },
     },
 
@@ -368,7 +480,71 @@ export default defineConfig({
         county: { lens: 'counties', kind: 'belongsTo', on: { countyFips: 'fips' } },
         disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
       },
-      grants: { query: 'public' },
+      feeds: {
+        // Admin-side recency: surfaces the latest CDC-import rows so the
+        // dashboard can show "what was just ingested." Older imports
+        // decay out under the recency half-life.
+        latest: {
+          candidates: { from: 'recent', limit: 200 },
+          rank: { recency: { weight: 1, halfLife: '30d' } },
+          pagination: { pageSize: 50, dedup: { by: 'sourceRowId' } },
+        },
+      },
+      analyses: {
+        // "Lyme over time" line chart. evolve makes the admin dashboard
+        // tick in real time when an import lands.
+        casesByYear: {
+          candidates: {},
+          dimensions: [
+            { field: 'year' },
+            { field: 'diseaseId' },
+          ],
+          measures: {
+            total: { agg: 'sum', column: 'count' },
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+          },
+          sort: [{ dimension: 'year', dir: 'asc' }],
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+          evolve: { onSubscribe: 'fresh', pollOnIngest: true, minNotifyInterval: '1m' },
+        },
+        // State-by-state chart on /diseases/[slug]/states.
+        casesByState: {
+          candidates: {},
+          dimensions: [
+            { field: 'diseaseId' },
+            { field: 'stateFips', through: 'county' },
+          ],
+          measures: {
+            total: { agg: 'sum', column: 'count' },
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+            yearsCovered: { agg: 'count_distinct', column: 'year' },
+          },
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
+        // Top 100 counties by cumulative case count, any disease.
+        // "Worst tick counties in America" leaderboard.
+        countyHotspots: {
+          candidates: {},
+          dimensions: [{ field: 'countyFips' }],
+          measures: {
+            total: { agg: 'sum', column: 'count' },
+            mostRecentYear: { agg: 'max', column: 'year' },
+            diseases: { agg: 'count_distinct', column: 'diseaseId' },
+          },
+          sort: [{ measure: 'total', dir: 'desc' }],
+          limit: 100,
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
+      },
+      grants: {
+        query: 'public',
+        feed: { latest: 'public' },
+        analyze: {
+          casesByYear: 'public',
+          casesByState: 'public',
+          countyHotspots: 'public',
+        },
+      },
     },
 
     diseaseMonth: {
@@ -389,7 +565,35 @@ export default defineConfig({
       relations: {
         disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
       },
-      grants: { query: 'public' },
+      feeds: {
+        // Mirror of diseaseCountyYear.latest for the monthly bucket.
+        latest: {
+          candidates: { from: 'recent', limit: 200 },
+          rank: { recency: { weight: 1, halfLife: '30d' } },
+          pagination: { pageSize: 50, dedup: { by: 'sourceRowId' } },
+        },
+      },
+      analyses: {
+        // "When is Lyme season?" radial / line chart, per disease.
+        seasonality: {
+          candidates: {},
+          dimensions: [
+            { field: 'month' },
+            { field: 'diseaseId' },
+          ],
+          measures: {
+            total: { agg: 'sum', column: 'count' },
+            avg: { agg: 'avg', column: 'count' },
+          },
+          sort: [{ dimension: 'month', dir: 'asc' }],
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
+      },
+      grants: {
+        query: 'public',
+        feed: { latest: 'public' },
+        analyze: { seasonality: 'public' },
+      },
     },
 
     // ─── Editorial M:N join lenses ──────────────────────────────────
@@ -414,7 +618,26 @@ export default defineConfig({
         tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
         disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
       },
-      grants: { query: 'public' },
+      analyses: {
+        // Powers the badge on /ticks/[slug]: "carries 4 diseases."
+        diseasesPerTick: {
+          candidates: {},
+          dimensions: [{ field: 'tickId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'desc' }],
+        },
+        // Inverse — "Lyme is carried by 2 species."
+        ticksPerDisease: {
+          candidates: {},
+          dimensions: [{ field: 'diseaseId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'desc' }],
+        },
+      },
+      grants: {
+        query: 'public',
+        analyze: { diseasesPerTick: 'public', ticksPerDisease: 'public' },
+      },
     },
 
     tickRemovalTechniques: {
@@ -454,6 +677,17 @@ export default defineConfig({
         wildFact: { lens: 'wildFacts', kind: 'belongsTo', on: { wildFactId: 'id' } },
         tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
       },
+      analyses: {
+        // Editorial coverage: which ticks have the fewest wild facts? Sort
+        // ascending so the empty/sparse ticks bubble up first. No grant —
+        // editorial-only, callable from the admin via the service key.
+        factCoverage: {
+          candidates: {},
+          dimensions: [{ field: 'tickId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'asc' }],
+        },
+      },
       grants: { query: 'public' },
     },
 
@@ -474,6 +708,15 @@ export default defineConfig({
         wildFact: { lens: 'wildFacts', kind: 'belongsTo', on: { wildFactId: 'id' } },
         disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
       },
+      analyses: {
+        // Editorial coverage: diseases lacking wild-fact context.
+        factCoverage: {
+          candidates: {},
+          dimensions: [{ field: 'diseaseId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'asc' }],
+        },
+      },
       grants: { query: 'public' },
     },
 
@@ -493,6 +736,15 @@ export default defineConfig({
       relations: {
         wildFact: { lens: 'wildFacts', kind: 'belongsTo', on: { wildFactId: 'id' } },
         removalTechnique: { lens: 'removalTechniques', kind: 'belongsTo', on: { removalTechniqueId: 'id' } },
+      },
+      analyses: {
+        // Editorial coverage: removal techniques lacking wild-fact context.
+        factCoverage: {
+          candidates: {},
+          dimensions: [{ field: 'removalTechniqueId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'asc' }],
+        },
       },
       grants: { query: 'public' },
     },

@@ -1,6 +1,7 @@
 // Smoke test for the SemiLayer config: hit every queryable lens with
 // the public read key (`pk_…`), confirm we get rows in the expected
-// shape, and exit non-zero on any failure.
+// shape, exercise every public feed, and run every public analyze
+// metric end-to-end. Exits non-zero on failure.
 //
 // Run me after `pnpm semilayer:push` / `pnpm semilayer:generate` to
 // verify the live tenant matches the local config.
@@ -12,13 +13,25 @@
 //   NEXT_PUBLIC_SEMILAYER_PUBLIC_KEY   pk_prod_…
 //
 // We deliberately use the public key, not the service key, so this
-// exercises the same access path the public site does. We also use the
-// raw BeamClient (not the generated typed Beam) so this smoke stays
-// independent of `pnpm semilayer:generate` having run.
+// exercises the same access path the public site does. Editorial-only
+// metrics (`factCoverage`, `recencyOfData`) have no public grant; they
+// ride the admin's service key from server actions and are out of
+// scope for this smoke.
+//
+// Analyses split into two groups:
+//   * LOCAL — every dimension/measure column lives on the lens.
+//     Run via `client.analyze()`; assert envelope, non-empty buckets
+//     where data exists, and `meta.strategy === 'pushdown'` so a
+//     silent regression to streaming would fail loudly.
+//   * CROSS-SOURCE — dimension uses `through:` to hop a relation.
+//     Currently expected to surface a structured 501 with
+//     `unsupported_relation`. We assert that, so a regression to a
+//     bare 500 catches. When the platform lights up cross-source
+//     aggregation, flip these into LOCAL.
 
-import { BeamClient } from '@semilayer/client'
+import { BeamClient, BeamError } from '@semilayer/client'
 
-interface Check {
+interface LensCheck {
   lens: string
   expectedFields: readonly string[]
   // A lens may legitimately be empty (e.g. tickState before editorial
@@ -27,7 +40,7 @@ interface Check {
   emptyOk?: boolean
 }
 
-const CHECKS: readonly Check[] = [
+const LENS_CHECKS: readonly LensCheck[] = [
   { lens: 'ticks', expectedFields: ['id', 'slug', 'commonName', 'scientificName'] },
   { lens: 'wildFacts', expectedFields: ['id', 'slug', 'body'], emptyOk: true },
   { lens: 'removalTechniques', expectedFields: ['id', 'slug', 'title'] },
@@ -69,6 +82,70 @@ const CHECKS: readonly Check[] = [
   },
 ] as const
 
+interface FeedCheck {
+  lens: string
+  name: string
+  // Some feeds rely on data that may not exist yet, or on indexer state
+  // that lags a fresh push. emptyOk skips the "no items" failure but
+  // still confirms auth + route shape.
+  emptyOk?: boolean
+}
+
+const FEED_CHECKS: readonly FeedCheck[] = [
+  { lens: 'wildFacts', name: 'latest', emptyOk: true },
+  { lens: 'removalTechniques', name: 'latest' },
+  { lens: 'tickCounty', name: 'latest' },
+  { lens: 'tickCounty', name: 'recentlyEstablished' },
+  { lens: 'diseases', name: 'trending' },
+  // counties has no change-tracking column (static FIPS data); the feed
+  // pulls from the embeddings index and may take time to populate.
+  { lens: 'counties', name: 'byDiseaseLoad', emptyOk: true },
+  // Recently-pushed lens — recency cursor may lag the bulk-import drop
+  // window. Reasserts after a sync cycle.
+  { lens: 'diseaseCountyYear', name: 'latest', emptyOk: true },
+  { lens: 'diseaseMonth', name: 'latest', emptyOk: true },
+] as const
+
+interface AnalyzeRunCheck {
+  lens: string
+  name: string
+  // Source data may be empty for some metrics (e.g. diseaseMonth before
+  // monthly imports). emptyOk skips the "no buckets" failure.
+  emptyOk?: boolean
+}
+
+const ANALYZE_RUN_CHECKS: readonly AnalyzeRunCheck[] = [
+  { lens: 'tickDiseases', name: 'diseasesPerTick' },
+  { lens: 'tickDiseases', name: 'ticksPerDisease' },
+  { lens: 'tickCounty', name: 'establishedRange' },
+  { lens: 'tickCounty', name: 'spreadOverTime' },
+  { lens: 'diseaseCountyYear', name: 'casesByYear' },
+  { lens: 'diseaseCountyYear', name: 'countyHotspots' },
+  { lens: 'diseaseMonth', name: 'seasonality', emptyOk: true },
+] as const
+
+interface AnalyzeCrossSourceCheck {
+  lens: string
+  name: string
+  expectedStatus: number
+  expectedDetailIncludes: string
+}
+
+const ANALYZE_CROSS_SOURCE_CHECKS: readonly AnalyzeCrossSourceCheck[] = [
+  {
+    lens: 'tickCounty',
+    name: 'establishedByState',
+    expectedStatus: 501,
+    expectedDetailIncludes: 'unsupported_relation',
+  },
+  {
+    lens: 'diseaseCountyYear',
+    name: 'casesByState',
+    expectedStatus: 501,
+    expectedDetailIncludes: 'unsupported_relation',
+  },
+] as const
+
 function requireEnv(name: string): string {
   const v = process.env[name]
   if (!v) {
@@ -79,7 +156,7 @@ function requireEnv(name: string): string {
 }
 
 interface Failure {
-  lens: string
+  scope: string
   reason: string
 }
 
@@ -97,7 +174,9 @@ async function main() {
   const client = new BeamClient({ baseUrl, apiKey })
 
   const failures: Failure[] = []
-  for (const check of CHECKS) {
+
+  console.log('-- lenses --')
+  for (const check of LENS_CHECKS) {
     const startedAt = Date.now()
     try {
       const [{ count }, { rows }] = await Promise.all([
@@ -114,7 +193,7 @@ async function main() {
           )
           continue
         }
-        failures.push({ lens: check.lens, reason: `no rows returned (count=${count})` })
+        failures.push({ scope: `lens:${check.lens}`, reason: `no rows returned (count=${count})` })
         console.log(`✗ ${pad(check.lens)}  count=${count}  ${tookMs}ms  no rows`)
         continue
       }
@@ -123,7 +202,7 @@ async function main() {
       const missing = check.expectedFields.filter((f) => !(f in sample))
       if (missing.length > 0) {
         failures.push({
-          lens: check.lens,
+          scope: `lens:${check.lens}`,
           reason: `missing fields: ${missing.join(', ')}. got: ${Object.keys(sample).join(', ')}`,
         })
         console.log(`✗ ${pad(check.lens)}  missing ${missing.join(', ')}`)
@@ -135,23 +214,124 @@ async function main() {
       )
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      failures.push({ lens: check.lens, reason: msg })
+      failures.push({ scope: `lens:${check.lens}`, reason: msg })
       console.log(`✗ ${pad(check.lens)}  ${msg}`)
     }
   }
 
+  console.log('\n-- feeds --')
+  for (const check of FEED_CHECKS) {
+    const label = `${check.lens}.${check.name}`
+    const startedAt = Date.now()
+    try {
+      const page = await client.feed(check.lens, check.name, { pageSize: 2 })
+      const tookMs = Date.now() - startedAt
+
+      if (page.items.length === 0 && !check.emptyOk) {
+        failures.push({ scope: `feed:${label}`, reason: 'no items returned' })
+        console.log(`✗ ${pad(label)}  ${tookMs}ms  empty`)
+        continue
+      }
+      const note = page.items.length === 0 ? '  (empty — ok for this feed)' : ''
+      console.log(`  ${pad(label)}  items=${page.items.length}  ${tookMs}ms${note}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      failures.push({ scope: `feed:${label}`, reason: msg })
+      console.log(`✗ ${pad(label)}  ${msg}`)
+    }
+  }
+
+  console.log('\n-- analyses (local) --')
+  for (const check of ANALYZE_RUN_CHECKS) {
+    const label = `${check.lens}.${check.name}`
+    const startedAt = Date.now()
+    try {
+      const result = await client.analyze(check.lens, check.name)
+      const tookMs = Date.now() - startedAt
+
+      if (result.kind !== 'metric') {
+        failures.push({
+          scope: `analyze:${label}`,
+          reason: `expected kind 'metric', got '${result.kind}'`,
+        })
+        console.log(`✗ ${pad(label)}  unexpected kind=${result.kind}`)
+        continue
+      }
+      const strategy = result.meta.strategy
+      if (strategy !== 'pushdown') {
+        failures.push({
+          scope: `analyze:${label}`,
+          reason: `expected meta.strategy 'pushdown', got '${strategy}' (silent fallback?)`,
+        })
+        console.log(`✗ ${pad(label)}  strategy=${strategy}`)
+        continue
+      }
+      if (result.buckets.length === 0 && !check.emptyOk) {
+        failures.push({ scope: `analyze:${label}`, reason: 'no buckets returned' })
+        console.log(`✗ ${pad(label)}  ${tookMs}ms  empty`)
+        continue
+      }
+      const note = result.buckets.length === 0 ? '  (empty — ok for this metric)' : ''
+      console.log(
+        `  ${pad(label)}  buckets=${result.buckets.length}  ${tookMs}ms  strategy=${strategy}${note}`,
+      )
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      failures.push({ scope: `analyze:${label}`, reason: msg })
+      console.log(`✗ ${pad(label)}  ${msg}`)
+    }
+  }
+
+  console.log('\n-- analyses (cross-source — expected gap) --')
+  for (const check of ANALYZE_CROSS_SOURCE_CHECKS) {
+    const label = `${check.lens}.${check.name}`
+    const startedAt = Date.now()
+    try {
+      const result = await client.analyze(check.lens, check.name)
+      const tookMs = Date.now() - startedAt
+      // The platform shipped cross-source aggregation. Flag it so the
+      // smoke gets updated; treat as a soft pass for now.
+      console.log(
+        `  ${pad(label)}  ${tookMs}ms  now passing (buckets=${result.buckets.length}) — flip to local`,
+      )
+    } catch (err) {
+      const tookMs = Date.now() - startedAt
+      if (
+        err instanceof BeamError &&
+        err.status === check.expectedStatus &&
+        err.detail.includes(check.expectedDetailIncludes)
+      ) {
+        console.log(
+          `  ${pad(label)}  ${tookMs}ms  ${err.status} ${check.expectedDetailIncludes} (expected)`,
+        )
+        continue
+      }
+      const msg = err instanceof Error ? err.message : String(err)
+      failures.push({
+        scope: `analyze:${label}`,
+        reason: `expected ${check.expectedStatus} ${check.expectedDetailIncludes}, got: ${msg}`,
+      })
+      console.log(`✗ ${pad(label)}  ${msg}`)
+    }
+  }
+
+  const total =
+    LENS_CHECKS.length +
+    FEED_CHECKS.length +
+    ANALYZE_RUN_CHECKS.length +
+    ANALYZE_CROSS_SOURCE_CHECKS.length
   console.log('')
   if (failures.length > 0) {
-    console.error(`✗ ${failures.length} / ${CHECKS.length} lenses failed`)
-    for (const f of failures) console.error(`  - ${f.lens}: ${f.reason}`)
+    console.error(`✗ ${failures.length} checks failed (out of ${total})`)
+    for (const f of failures) console.error(`  - ${f.scope}: ${f.reason}`)
     process.exit(1)
   }
 
-  console.log(`✓ all ${CHECKS.length} lenses healthy`)
+  console.log(`✓ all ${total} checks healthy`)
 }
 
 function pad(s: string): string {
-  return s.padEnd(22, ' ')
+  return s.padEnd(34, ' ')
 }
 
 main().catch((err) => {

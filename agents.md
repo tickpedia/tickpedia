@@ -48,6 +48,7 @@ just do them. Each skill is a self-contained markdown file under `skills/`.
 | [local-setup](./skills/local-setup.md) | Fresh clone → working dev loop. Start here. |
 | [add-a-page](./skills/add-a-page.md) | Add a new route to `apps/web` end-to-end (route, test, e2e) |
 | [add-a-lens](./skills/add-a-lens.md) | Expose a new table to the public site through a SemiLayer lens |
+| [add-an-analyze](./skills/add-an-analyze.md) | Add a declarative aggregation (`analyses.*`) to a SemiLayer lens — when to precompute, refreshInterval picks, the field-mapping caveat |
 | [add-a-table](./skills/add-a-table.md) | Drizzle schema → migration → seed → tests |
 | [ingest-cdc-data](./skills/ingest-cdc-data.md) | Pull CDC FIPS-keyed surveillance data; wide→long; canonical disease slugs |
 | [import-xlsx](./skills/import-xlsx.md) | The admin xlsx import path: 3 modes, idempotency contract, where to extend |
