@@ -1,9 +1,9 @@
-// Manual smoke test — point at the unstructured-data folder and run:
+// Manual smoke test — point at the unstructured-data/xlsx folder and run:
 //   tsx --env-file=../.env src/__tests__/xlsx-smoke.ts
 //
-// Verifies that all three xlsx files in unstructured-data parse + ingest
-// idempotently against the LOCAL Postgres. Not part of `vitest run`
-// because it touches the database.
+// Verifies that all three xlsx files in unstructured-data/xlsx parse +
+// ingest idempotently against the LOCAL Postgres. Not part of
+// `vitest run` because it touches the database.
 
 import { resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
@@ -20,7 +20,7 @@ import {
 } from '../ingest/index.js'
 import { schema } from '../index.js'
 
-const DATA_DIR = resolve(import.meta.dirname, '..', '..', '..', '..', 'unstructured-data')
+const DATA_DIR = resolve(import.meta.dirname, '..', '..', '..', '..', 'unstructured-data', 'xlsx')
 
 function readSheet(file: string, opts: { headerRow?: number; sheetName?: string } = {}) {
   const buf = readFileSync(resolve(DATA_DIR, file))
