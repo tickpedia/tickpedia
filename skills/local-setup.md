@@ -88,7 +88,7 @@ When state goes weird and you just want a clean slate:
 
 ```bash
 pnpm db:down
-docker volume rm tickpedia_tickpedia_pg_data 2>/dev/null
+docker volume rm docker_tickpedia_pg_data 2>/dev/null
 pnpm db:setup:local
 ```
 

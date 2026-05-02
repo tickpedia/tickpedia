@@ -16,7 +16,7 @@
     "semilayer:generate": "semilayer generate --out ./generated/semilayer",
     "semilayer:push": "semilayer push",
     "semilayer:smoke": "pnpm --filter @tickpedia/e2e smoke:semilayer",
-    "db:up": "docker compose -f docker/docker-compose.yml up -d --wait",
+    "db:up": "docker volume create docker_tickpedia_pg_data && docker compose -f docker/docker-compose.yml up -d --wait",
     "db:down": "docker compose -f docker/docker-compose.yml down",
     "db:logs": "docker compose -f docker/docker-compose.yml logs -f postgres",
     "db:generate": "pnpm --filter @tickpedia/db db:generate",
