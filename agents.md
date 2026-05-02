@@ -51,6 +51,7 @@ just do them. Each skill is a self-contained markdown file under `skills/`.
 | [ingest-cdc-data](./skills/ingest-cdc-data.md) | Pull CDC FIPS-keyed surveillance data; wide→long; canonical disease slugs |
 | [import-xlsx](./skills/import-xlsx.md) | The admin xlsx import path: 3 modes, idempotency contract, where to extend |
 | [run-e2e](./skills/run-e2e.md) | The hermetic e2e flow + how to debug failures |
+| [debug-admin](./skills/debug-admin.md) | Auth/allowlist/Vercel debugging for `admin.tickpedia.com` (start here when admin misbehaves) |
 
 If a workflow shows up twice, write a skill for it. The next agent will
 thank you.
