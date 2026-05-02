@@ -49,6 +49,18 @@ describe('DesignShowcase', () => {
     expect(screen.getByRole('group', { name: /theme/i })).toBeInTheDocument()
   })
 
+  it('renders the charts section with every primitive present', () => {
+    render(<DesignShowcase />)
+    expect(screen.getByTestId('charts-section')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /lyme cases trend/i })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /reported cases · thousands line chart/i })).toBeInTheDocument()
+    expect(screen.getByTestId('bar-row')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /lyme seasonality/i })).toBeInTheDocument()
+    expect(screen.getByTestId('choropleth')).toBeInTheDocument()
+    expect(screen.getByTestId('hex-heatmap')).toBeInTheDocument()
+    expect(screen.getByTestId('leaderboard')).toBeInTheDocument()
+  })
+
   it('uses the design-system container class', () => {
     render(<DesignShowcase />)
     const root = screen.getByTestId('design-showcase')

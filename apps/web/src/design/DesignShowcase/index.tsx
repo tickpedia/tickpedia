@@ -4,10 +4,11 @@ import { CrestSection } from './sections/CrestSection.js'
 import { PaletteSection } from './sections/PaletteSection.js'
 import { TypeSection } from './sections/TypeSection.js'
 import { CitationSection } from './sections/CitationSection.js'
+import { ChartsSection } from './sections/ChartsSection.js'
 
-// Phase-1 review surface. Visit `/design` in the dev server to see
-// the design system in isolation. Each section is its own component
-// under `sections/` so future phases can compose / reuse pieces.
+// Design-system review surface. Visit `/design` in the dev server.
+// Each section is its own component under `sections/` so future phases
+// can compose / reuse pieces.
 
 export function DesignShowcase() {
   return (
@@ -17,6 +18,7 @@ export function DesignShowcase() {
       <PaletteSection />
       <TypeSection />
       <CitationSection />
+      <ChartsSection />
       <ThemeBar />
     </div>
   )
