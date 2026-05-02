@@ -1,71 +1,59 @@
-import { revalidatePath } from 'next/cache'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
-import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import DiseaseForm from './DiseaseForm'
-
-function slugify(s: string): string {
-  return s
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-async function upsertDisease(form: FormData): Promise<{ ok: boolean; error?: string }> {
-  'use server'
-  const displayName = String(form.get('displayName') ?? '').trim()
-  const slugInput = String(form.get('slug') ?? '').trim()
-  const aliasesRaw = String(form.get('aliases') ?? '').trim()
-  const slug = slugInput || slugify(displayName)
-  const aliases = aliasesRaw
-    .split(/[,\n]/)
-    .map((a) => slugify(a))
-    .filter(Boolean)
-  if (!aliases.includes(slug)) aliases.unshift(slug)
-
-  if (!displayName) return { ok: false, error: 'Display name required.' }
-  if (!slug) return { ok: false, error: 'Slug could not be derived.' }
-
-  const db = connect(process.env.DATABASE_URL)
-  await db
-    .insert(schema.diseases)
-    .values({ slug, displayName, aliases })
-    .onConflictDoUpdate({
-      target: schema.diseases.slug,
-      set: {
-        displayName: sql`EXCLUDED.display_name`,
-        aliases: sql`EXCLUDED.aliases`,
-        updatedAt: sql`now()`,
-      },
-    })
-  await notifySemilayer('diseases')
-  revalidatePath('/content/diseases')
-  return { ok: true }
-}
+import { upsertDisease } from './actions'
 
 export default async function Page() {
   const db = connect(process.env.DATABASE_URL)
-  const diseases = await db
-    .select({
-      id: schema.diseases.id,
-      slug: schema.diseases.slug,
-      displayName: schema.diseases.displayName,
-      aliases: schema.diseases.aliases,
-      updatedAt: schema.diseases.updatedAt,
-    })
-    .from(schema.diseases)
-    .orderBy(schema.diseases.displayName)
+
+  const rows = (await db.execute(sql`
+    select
+      d.id,
+      d.slug,
+      d.display_name as "displayName",
+      d.aliases,
+      d.updated_at  as "updatedAt",
+      coalesce((
+        select string_agg(t.common_name, ', ' order by t.common_name)
+        from tick_diseases td
+        join ticks t on t.id = td.tick_id
+        where td.disease_id = d.id
+      ), '') as "tickList"
+    from diseases d
+    order by d.display_name
+  `)) as unknown as { rows: Row[] } | Row[]
+
+  type Row = {
+    id: number
+    slug: string
+    displayName: string
+    aliases: string[]
+    updatedAt: Date | string
+    tickList: string
+  }
+
+  const diseases: Row[] = Array.isArray(rows) ? rows : rows.rows
+
+  const ticks = await db
+    .select({ id: schema.ticks.id, commonName: schema.ticks.commonName })
+    .from(schema.ticks)
+    .orderBy(schema.ticks.commonName)
 
   return (
     <div>
       <h1>Diseases</h1>
       <p className="muted">
         Canonical disease records. Aliases capture the spelling variants we see in CDC files,
-        so ingest can resolve loose strings to the right id.
+        so ingest can resolve loose strings to the right id. Tick associations come from the
+        editor below or from each tick&rsquo;s own page.
       </p>
 
-      <DiseaseForm action={upsertDisease} />
+      <DiseaseForm
+        action={upsertDisease}
+        ticks={ticks.map((t) => ({ value: String(t.id), label: t.commonName }))}
+      />
 
       <div className="card">
         <h3>All diseases ({diseases.length})</h3>
@@ -73,20 +61,39 @@ export default async function Page() {
           <thead>
             <tr>
               <th>Display name</th>
-              <th>Slug</th>
               <th>Aliases</th>
+              <th>Ticks</th>
               <th>Updated</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {diseases.map((d) => (
               <tr key={d.id}>
-                <td>{d.displayName}</td>
                 <td>
-                  <code>{d.slug}</code>
+                  {d.displayName}
+                  <div className="muted" style={{ fontSize: '0.75rem' }}>
+                    <code>{d.slug}</code>
+                  </div>
                 </td>
-                <td className="muted">{d.aliases.join(', ')}</td>
-                <td>{d.updatedAt.toISOString().slice(0, 10)}</td>
+                <td className="muted" style={{ fontSize: '0.85rem' }}>
+                  {d.aliases.join(', ')}
+                </td>
+                <td className="muted">{d.tickList || '—'}</td>
+                <td>
+                  {(d.updatedAt instanceof Date ? d.updatedAt : new Date(d.updatedAt))
+                    .toISOString()
+                    .slice(0, 10)}
+                </td>
+                <td>
+                  <Link
+                    href={`/content/diseases/${d.slug}` as Route}
+                    className="button secondary"
+                    style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                  >
+                    Edit
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

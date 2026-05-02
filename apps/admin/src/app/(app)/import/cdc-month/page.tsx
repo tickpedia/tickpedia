@@ -7,7 +7,7 @@
 
 import { connect } from '@tickpedia/db'
 import { ingestDiseaseMonth, type DiseaseMonthRow, type IngestSummary } from '@tickpedia/db/ingest'
-import { parseXlsx } from '../../../../lib/xlsx'
+import { parseSpreadsheetInput } from '../../../../lib/xlsx'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import BasicImportForm from '../../../components/BasicImportForm'
 
@@ -16,11 +16,8 @@ async function importAction(
   form: FormData,
 ): Promise<IngestSummary | null> {
   'use server'
-  const file = form.get('file')
-  if (!(file instanceof File) || file.size === 0) return null
-
-  const buf = await file.arrayBuffer()
-  const sheet = parseXlsx(buf)
+  const sheet = await parseSpreadsheetInput(form)
+  if (!sheet) return null
   const headers = sheet.headers.map((h) => h.toString())
 
   const findHeader = (re: RegExp): string | null => headers.find((h) => re.test(h)) ?? null

@@ -11,19 +11,17 @@
 import { connect, schema } from '@tickpedia/db'
 import { ingestCdcCountyYear } from '@tickpedia/db/ingest'
 import type { RawCountyRow, IngestSummary } from '@tickpedia/db/ingest'
-import { parseXlsx } from '../../../../lib/xlsx'
+import { parseSpreadsheetInput } from '../../../../lib/xlsx'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import ImportForm from './ImportForm'
 
 async function importAction(_prev: IngestSummary | null, form: FormData): Promise<IngestSummary | null> {
   'use server'
-  const file = form.get('file')
   const year = Number(form.get('year'))
-  if (!(file instanceof File) || file.size === 0) return null
   if (!Number.isInteger(year)) return null
 
-  const buf = await file.arrayBuffer()
-  const sheet = parseXlsx(buf)
+  const sheet = await parseSpreadsheetInput(form)
+  if (!sheet) return null
 
   // Coerce every cell to string for rowToLong's RawCountyRow shape.
   const rows: RawCountyRow[] = sheet.rows.map((r) => {

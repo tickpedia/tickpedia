@@ -1,59 +1,45 @@
-import { revalidatePath } from 'next/cache'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
-import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import TechniqueForm from './TechniqueForm'
-
-function slugify(s: string): string {
-  return s
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-async function upsertTechnique(form: FormData): Promise<{ ok: boolean; error?: string }> {
-  'use server'
-  const title = String(form.get('title') ?? '').trim()
-  const steps = String(form.get('steps') ?? '').trim()
-  const sourceUrl = String(form.get('sourceUrl') ?? '').trim() || null
-  const slugInput = String(form.get('slug') ?? '').trim()
-  const slug = slugInput || slugify(title)
-
-  if (!title) return { ok: false, error: 'Title required.' }
-  if (!steps) return { ok: false, error: 'Steps required.' }
-  if (!slug) return { ok: false, error: 'Slug could not be derived.' }
-
-  const db = connect(process.env.DATABASE_URL)
-  await db
-    .insert(schema.removalTechniques)
-    .values({ slug, title, steps, sourceUrl })
-    .onConflictDoUpdate({
-      target: schema.removalTechniques.slug,
-      set: {
-        title: sql`EXCLUDED.title`,
-        steps: sql`EXCLUDED.steps`,
-        sourceUrl: sql`EXCLUDED.source_url`,
-        updatedAt: sql`now()`,
-      },
-    })
-  await notifySemilayer('removalTechniques')
-  revalidatePath('/content/techniques')
-  return { ok: true }
-}
+import { upsertTechnique } from './actions'
 
 export default async function Page() {
   const db = connect(process.env.DATABASE_URL)
-  const techniques = await db
-    .select({
-      id: schema.removalTechniques.id,
-      slug: schema.removalTechniques.slug,
-      title: schema.removalTechniques.title,
-      sourceUrl: schema.removalTechniques.sourceUrl,
-      updatedAt: schema.removalTechniques.updatedAt,
-    })
-    .from(schema.removalTechniques)
-    .orderBy(schema.removalTechniques.title)
+
+  const rows = (await db.execute(sql`
+    select
+      r.id,
+      r.slug,
+      r.title,
+      r.source_url   as "sourceUrl",
+      r.updated_at   as "updatedAt",
+      coalesce((
+        select string_agg(t.common_name, ', ' order by t.common_name)
+        from tick_removal_techniques tr
+        join ticks t on t.id = tr.tick_id
+        where tr.removal_technique_id = r.id
+      ), '') as "tickList"
+    from removal_techniques r
+    order by r.title
+  `)) as unknown as { rows: Row[] } | Row[]
+
+  type Row = {
+    id: number
+    slug: string
+    title: string
+    sourceUrl: string | null
+    updatedAt: Date | string
+    tickList: string
+  }
+
+  const techniques: Row[] = Array.isArray(rows) ? rows : rows.rows
+
+  const ticks = await db
+    .select({ id: schema.ticks.id, commonName: schema.ticks.commonName })
+    .from(schema.ticks)
+    .orderBy(schema.ticks.commonName)
 
   return (
     <div>
@@ -63,10 +49,13 @@ export default async function Page() {
         with an existing slug overwrites it.
       </p>
 
-      <TechniqueForm action={upsertTechnique} />
+      <TechniqueForm
+        action={upsertTechnique}
+        ticks={ticks.map((t) => ({ value: String(t.id), label: t.commonName }))}
+      />
 
       <div className="card">
-        <h3>All techniques</h3>
+        <h3>All techniques ({techniques.length})</h3>
         {techniques.length === 0 ? (
           <p className="muted">None yet.</p>
         ) : (
@@ -75,8 +64,10 @@ export default async function Page() {
               <tr>
                 <th>Title</th>
                 <th>Slug</th>
+                <th>Ticks</th>
                 <th>Source</th>
                 <th>Updated</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -86,6 +77,7 @@ export default async function Page() {
                   <td>
                     <code>{t.slug}</code>
                   </td>
+                  <td className="muted">{t.tickList || '—'}</td>
                   <td>
                     {t.sourceUrl ? (
                       <a href={t.sourceUrl} target="_blank" rel="noreferrer">
@@ -95,7 +87,20 @@ export default async function Page() {
                       '—'
                     )}
                   </td>
-                  <td>{t.updatedAt.toISOString().slice(0, 10)}</td>
+                  <td>
+                    {(t.updatedAt instanceof Date ? t.updatedAt : new Date(t.updatedAt))
+                      .toISOString()
+                      .slice(0, 10)}
+                  </td>
+                  <td>
+                    <Link
+                      href={`/content/techniques/${t.slug}` as Route}
+                      className="button secondary"
+                      style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                    >
+                      Edit
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

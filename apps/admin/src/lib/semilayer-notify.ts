@@ -28,6 +28,11 @@ export type Lens =
   | 'tickCounty'
   | 'diseaseCountyYear'
   | 'diseaseMonth'
+  | 'tickDiseases'
+  | 'tickRemovalTechniques'
+  | 'wildFactTicks'
+  | 'wildFactDiseases'
+  | 'wildFactRemovalTechniques'
 
 export async function notifySemilayer(lens: Lens): Promise<void> {
   if (!url || !key || key.startsWith('ik_prod_REPLACE') || key.startsWith('sk_dev_REPLACE')) {

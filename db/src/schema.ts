@@ -45,10 +45,6 @@ export const ticks = pgTable(
     heroBodyColor: text('hero_body_color'),
     heroLegColor: text('hero_leg_color'),
     dangerLevel: dangerLevel('danger_level').notNull().default('low'),
-    diseases: text('diseases')
-      .array()
-      .notNull()
-      .default(sql`ARRAY[]::text[]`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -167,14 +163,127 @@ export const removalTechniques = pgTable(
   }),
 )
 
-export const wildFacts = pgTable('wild_facts', {
-  id: serial('id').primaryKey(),
-  body: text('body').notNull(),
-  citationUrl: text('citation_url'),
-  tickId: integer('tick_id').references(() => ticks.id, { onDelete: 'set null' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
+export const wildFacts = pgTable(
+  'wild_facts',
+  {
+    id: serial('id').primaryKey(),
+    // Stable handle for idempotent JSON imports. Optional in the admin
+    // editor (auto-derived from the body if blank), required for any
+    // re-import path so re-running the same JSON updates instead of
+    // duplicating.
+    slug: text('slug').notNull(),
+    body: text('body').notNull(),
+    citationUrl: text('citation_url'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    slugIdx: uniqueIndex('wild_facts_slug_idx').on(t.slug),
+  }),
+)
+
+// ─── Editorial M:N joins ─────────────────────────────────────────────
+//
+// Each editorial entity can attach to several ticks (and vice versa);
+// wild facts can also attach to diseases and removal techniques. We
+// keep all five joins flat with a surrogate `id` so SemiLayer can lens
+// them with a single PK and chain the include from either side.
+
+export const tickDiseases = pgTable(
+  'tick_diseases',
+  {
+    id: serial('id').primaryKey(),
+    tickId: integer('tick_id')
+      .notNull()
+      .references(() => ticks.id, { onDelete: 'cascade' }),
+    diseaseId: integer('disease_id')
+      .notNull()
+      .references(() => diseases.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('tick_diseases_natural_idx').on(t.tickId, t.diseaseId),
+  }),
+)
+
+export const tickRemovalTechniques = pgTable(
+  'tick_removal_techniques',
+  {
+    id: serial('id').primaryKey(),
+    tickId: integer('tick_id')
+      .notNull()
+      .references(() => ticks.id, { onDelete: 'cascade' }),
+    removalTechniqueId: integer('removal_technique_id')
+      .notNull()
+      .references(() => removalTechniques.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('tick_removal_techniques_natural_idx').on(
+      t.tickId,
+      t.removalTechniqueId,
+    ),
+  }),
+)
+
+export const wildFactTicks = pgTable(
+  'wild_fact_ticks',
+  {
+    id: serial('id').primaryKey(),
+    wildFactId: integer('wild_fact_id')
+      .notNull()
+      .references(() => wildFacts.id, { onDelete: 'cascade' }),
+    tickId: integer('tick_id')
+      .notNull()
+      .references(() => ticks.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('wild_fact_ticks_natural_idx').on(t.wildFactId, t.tickId),
+  }),
+)
+
+export const wildFactDiseases = pgTable(
+  'wild_fact_diseases',
+  {
+    id: serial('id').primaryKey(),
+    wildFactId: integer('wild_fact_id')
+      .notNull()
+      .references(() => wildFacts.id, { onDelete: 'cascade' }),
+    diseaseId: integer('disease_id')
+      .notNull()
+      .references(() => diseases.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('wild_fact_diseases_natural_idx').on(t.wildFactId, t.diseaseId),
+  }),
+)
+
+export const wildFactRemovalTechniques = pgTable(
+  'wild_fact_removal_techniques',
+  {
+    id: serial('id').primaryKey(),
+    wildFactId: integer('wild_fact_id')
+      .notNull()
+      .references(() => wildFacts.id, { onDelete: 'cascade' }),
+    removalTechniqueId: integer('removal_technique_id')
+      .notNull()
+      .references(() => removalTechniques.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('wild_fact_removal_techniques_natural_idx').on(
+      t.wildFactId,
+      t.removalTechniqueId,
+    ),
+  }),
+)
 
 // ─── Scientific surveillance data ─────────────────────────────────────
 //

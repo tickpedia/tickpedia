@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { eq, sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
+import { readIdList, setRelations } from '../../../../lib/relations'
 
 export interface SaveResult {
   ok: boolean
@@ -19,8 +20,6 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-// Hex colors only — anything else is dropped so user free-text never
-// reaches the inline-rendered SVG.
 function normaliseColor(raw: FormDataEntryValue | null): string | null {
   const s = String(raw ?? '').trim()
   if (!s) return null
@@ -37,11 +36,6 @@ function readFormFields(form: FormData) {
   const heroHeadColor = normaliseColor(form.get('heroHeadColor'))
   const heroBodyColor = normaliseColor(form.get('heroBodyColor'))
   const heroLegColor = normaliseColor(form.get('heroLegColor'))
-  const diseasesRaw = String(form.get('diseases') ?? '').trim()
-  const diseases = diseasesRaw
-    .split(/[,\n]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
   return {
     commonName,
     scientificName,
@@ -51,7 +45,6 @@ function readFormFields(form: FormData) {
     heroHeadColor,
     heroBodyColor,
     heroLegColor,
-    diseases,
   }
 }
 
@@ -60,6 +53,9 @@ export async function upsertTick(form: FormData): Promise<SaveResult> {
   if (!v.commonName) return { ok: false, error: 'Common name required.' }
   if (!v.scientificName) return { ok: false, error: 'Scientific name required.' }
   if (!v.slug) return { ok: false, error: 'Slug could not be derived.' }
+
+  const diseaseIds = readIdList(form, 'diseaseIds')
+  const removalTechniqueIds = readIdList(form, 'removalTechniqueIds')
 
   const db = connect(process.env.DATABASE_URL)
   await db
@@ -75,11 +71,47 @@ export async function upsertTick(form: FormData): Promise<SaveResult> {
         heroHeadColor: sql`EXCLUDED.hero_head_color`,
         heroBodyColor: sql`EXCLUDED.hero_body_color`,
         heroLegColor: sql`EXCLUDED.hero_leg_color`,
-        diseases: sql`EXCLUDED.diseases`,
         updatedAt: sql`now()`,
       },
     })
-  await notifySemilayer('ticks')
+
+  // Read the row id back. The Neon HTTP driver's chainable doesn't
+  // expose `.returning()` after `onConflictDoUpdate` the way node-pg
+  // does, so we do a separate SELECT by the natural key.
+  const [row] = await db
+    .select({ id: schema.ticks.id })
+    .from(schema.ticks)
+    .where(eq(schema.ticks.slug, v.slug))
+    .limit(1)
+
+  if (row?.id) {
+    await setRelations(
+      db,
+      {
+        table: schema.tickDiseases,
+        parentColumn: schema.tickDiseases.tickId,
+        childColumn: schema.tickDiseases.diseaseId,
+      },
+      row.id,
+      diseaseIds,
+    )
+    await setRelations(
+      db,
+      {
+        table: schema.tickRemovalTechniques,
+        parentColumn: schema.tickRemovalTechniques.tickId,
+        childColumn: schema.tickRemovalTechniques.removalTechniqueId,
+      },
+      row.id,
+      removalTechniqueIds,
+    )
+  }
+
+  await Promise.all([
+    notifySemilayer('ticks'),
+    notifySemilayer('tickDiseases'),
+    notifySemilayer('tickRemovalTechniques'),
+  ])
   revalidatePath('/content/ticks')
   revalidatePath(`/content/ticks/${v.slug}`)
   return { ok: true }

@@ -29,7 +29,7 @@ interface Check {
 
 const CHECKS: readonly Check[] = [
   { lens: 'ticks', expectedFields: ['id', 'slug', 'commonName', 'scientificName'] },
-  { lens: 'wildFacts', expectedFields: ['id', 'body'], emptyOk: true },
+  { lens: 'wildFacts', expectedFields: ['id', 'slug', 'body'], emptyOk: true },
   { lens: 'removalTechniques', expectedFields: ['id', 'slug', 'title'] },
   { lens: 'states', expectedFields: ['fips', 'code', 'slug', 'name'] },
   { lens: 'counties', expectedFields: ['fips', 'stateFips', 'countyName', 'slug'] },
@@ -43,6 +43,28 @@ const CHECKS: readonly Check[] = [
   {
     lens: 'diseaseMonth',
     expectedFields: ['id', 'year', 'month', 'diseaseId', 'count'],
+    emptyOk: true,
+  },
+  // M:N joins
+  { lens: 'tickDiseases', expectedFields: ['id', 'tickId', 'diseaseId'] },
+  {
+    lens: 'tickRemovalTechniques',
+    expectedFields: ['id', 'tickId', 'removalTechniqueId'],
+    emptyOk: true,
+  },
+  {
+    lens: 'wildFactTicks',
+    expectedFields: ['id', 'wildFactId', 'tickId'],
+    emptyOk: true,
+  },
+  {
+    lens: 'wildFactDiseases',
+    expectedFields: ['id', 'wildFactId', 'diseaseId'],
+    emptyOk: true,
+  },
+  {
+    lens: 'wildFactRemovalTechniques',
+    expectedFields: ['id', 'wildFactId', 'removalTechniqueId'],
     emptyOk: true,
   },
 ] as const

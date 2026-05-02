@@ -20,7 +20,9 @@ import { connect } from './connect.js'
 import {
   ticks,
   tickState,
+  tickDiseases,
   wildFacts,
+  wildFactTicks,
   states,
   counties,
   diseases,
@@ -84,7 +86,6 @@ await db
       commonName: t.commonName,
       scientificName: t.scientificName,
       dangerLevel: t.dangerLevel,
-      diseases: t.diseases,
     })),
   )
   .onConflictDoUpdate({
@@ -93,11 +94,40 @@ await db
       commonName: sql`EXCLUDED.common_name`,
       scientificName: sql`EXCLUDED.scientific_name`,
       dangerLevel: sql`EXCLUDED.danger_level`,
-      diseases: sql`EXCLUDED.diseases`,
       updatedAt: sql`now()`,
     },
   })
 console.log(`ticks: ${CANONICAL_TICKS.length} rows`)
+
+// ─── 3b. tick_diseases — resolve canonical tick.diseases (display names)
+//        against the diseases table and write the join rows. Idempotent
+//        via the (tick_id, disease_id) unique index.
+const tickIdRows = await db
+  .select({ id: ticks.id, slug: ticks.slug })
+  .from(ticks)
+const tickIdBySlug = new Map(tickIdRows.map((r) => [r.slug, r.id]))
+const diseaseIdRows = await db
+  .select({ id: diseases.id, displayName: diseases.displayName })
+  .from(diseases)
+const diseaseIdByName = new Map(
+  diseaseIdRows.map((r) => [r.displayName.toLowerCase(), r.id]),
+)
+const tickDiseaseRows: { tickId: number; diseaseId: number }[] = []
+for (const t of CANONICAL_TICKS) {
+  const tickId = tickIdBySlug.get(t.slug)
+  if (!tickId) continue
+  for (const dn of t.diseases) {
+    const did = diseaseIdByName.get(dn.toLowerCase())
+    if (did) tickDiseaseRows.push({ tickId, diseaseId: did })
+  }
+}
+if (tickDiseaseRows.length > 0) {
+  await db
+    .insert(tickDiseases)
+    .values(tickDiseaseRows)
+    .onConflictDoNothing()
+}
+console.log(`tick_diseases: ${tickDiseaseRows.length} rows`)
 
 // ─── 4. Removal techniques ────────────────────────────────────────────
 await db
@@ -132,20 +162,27 @@ if (deer) {
     })
     .onConflictDoNothing()
 
-  // Wild fact — guard with a body-text lookup so re-runs don't insert
-  // duplicate copies of the seed fact.
-  const seedFact =
+  // Wild fact — slug-based idempotency now (replaces the old body-match).
+  const seedFactSlug = 'nymph-poppy-seed-borrelia'
+  const seedFactBody =
     'A single nymph the size of a poppy seed can deliver Borrelia burgdorferi ' +
     'in under 36 hours of attachment.'
 
-  const existing = await db
+  await db
+    .insert(wildFacts)
+    .values({ slug: seedFactSlug, body: seedFactBody })
+    .onConflictDoNothing({ target: wildFacts.slug })
+
+  const [factRow] = await db
     .select({ id: wildFacts.id })
     .from(wildFacts)
-    .where(sql`${wildFacts.body} = ${seedFact}`)
+    .where(sql`${wildFacts.slug} = ${seedFactSlug}`)
     .limit(1)
-
-  if (existing.length === 0) {
-    await db.insert(wildFacts).values({ body: seedFact, tickId: deer.id })
+  if (factRow?.id) {
+    await db
+      .insert(wildFactTicks)
+      .values({ wildFactId: factRow.id, tickId: deer.id })
+      .onConflictDoNothing()
   }
 }
 

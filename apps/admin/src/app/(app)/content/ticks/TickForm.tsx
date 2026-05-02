@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { TickArt, DEFAULT_TICK_ART, type TickArtColors } from '@tickpedia/ui'
+import Pillbox, { type PillboxOption } from '../../../components/Pillbox'
 
 type Result = { ok: boolean; error?: string }
 const init: Result = { ok: false }
@@ -15,7 +16,8 @@ export interface TickFormInitial {
   heroHeadColor: string
   heroBodyColor: string
   heroLegColor: string
-  diseases: string[]
+  diseaseIds: number[]
+  removalTechniqueIds: number[]
 }
 
 const EMPTY_INITIAL: TickFormInitial = {
@@ -27,17 +29,22 @@ const EMPTY_INITIAL: TickFormInitial = {
   heroHeadColor: DEFAULT_TICK_ART.headColor,
   heroBodyColor: DEFAULT_TICK_ART.bodyColor,
   heroLegColor: DEFAULT_TICK_ART.legColor,
-  diseases: [],
+  diseaseIds: [],
+  removalTechniqueIds: [],
 }
 
 export default function TickForm({
   action,
   initial,
   mode = 'create',
+  diseases,
+  techniques,
 }: {
   action: (form: FormData) => Promise<Result>
   initial?: TickFormInitial
   mode?: 'create' | 'edit'
+  diseases: PillboxOption[]
+  techniques: PillboxOption[]
 }) {
   const ref = useRef<HTMLFormElement>(null)
   const start = initial ?? EMPTY_INITIAL
@@ -46,9 +53,6 @@ export default function TickForm({
     init,
   )
 
-  // Live preview state — these mirror the form inputs so the SVG updates
-  // as the admin tweaks. On submit success in create mode, reset to
-  // defaults so the next add starts fresh.
   const [headColor, setHeadColor] = useState(start.heroHeadColor)
   const [bodyColor, setBodyColor] = useState(start.heroBodyColor)
   const [legColor, setLegColor] = useState(start.heroLegColor)
@@ -103,11 +107,7 @@ export default function TickForm({
           </div>
           <div className="field">
             <label htmlFor="dangerLevel">Danger level</label>
-            <select
-              id="dangerLevel"
-              name="dangerLevel"
-              defaultValue={start.dangerLevel}
-            >
+            <select id="dangerLevel" name="dangerLevel" defaultValue={start.dangerLevel}>
               <option value="low">low</option>
               <option value="medium">medium</option>
               <option value="high">high</option>
@@ -121,16 +121,6 @@ export default function TickForm({
               type="url"
               defaultValue={start.heroPhotoUrl}
               placeholder="https://…"
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="diseases">Disease display names (comma or newline)</label>
-            <textarea
-              id="diseases"
-              name="diseases"
-              rows={3}
-              defaultValue={start.diseases.join(', ')}
-              placeholder="Lyme disease, Babesiosis"
             />
           </div>
         </div>
@@ -201,11 +191,29 @@ export default function TickForm({
               />
             </div>
           ) : (
-            // Send an empty value so the server clears legColor when the
-            // checkbox is off.
             <input type="hidden" name="heroLegColor" value="" />
           )}
         </div>
+      </div>
+
+      <div className="field">
+        <label>Diseases this tick can transmit</label>
+        <Pillbox
+          name="diseaseIds"
+          options={diseases}
+          initial={start.diseaseIds.map(String)}
+          placeholder="Search diseases…"
+        />
+      </div>
+
+      <div className="field">
+        <label>Removal techniques that apply</label>
+        <Pillbox
+          name="removalTechniqueIds"
+          options={techniques}
+          initial={start.removalTechniqueIds.map(String)}
+          placeholder="Search techniques…"
+        />
       </div>
 
       <button type="submit" disabled={pending}>

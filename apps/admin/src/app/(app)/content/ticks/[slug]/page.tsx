@@ -18,8 +18,26 @@ export default async function EditTickPage({
     .from(schema.ticks)
     .where(eq(schema.ticks.slug, slug))
     .limit(1)
-
   if (!row) notFound()
+
+  const [diseases, techniques, diseaseLinks, techniqueLinks] = await Promise.all([
+    db
+      .select({ id: schema.diseases.id, displayName: schema.diseases.displayName })
+      .from(schema.diseases)
+      .orderBy(schema.diseases.displayName),
+    db
+      .select({ id: schema.removalTechniques.id, title: schema.removalTechniques.title })
+      .from(schema.removalTechniques)
+      .orderBy(schema.removalTechniques.title),
+    db
+      .select({ diseaseId: schema.tickDiseases.diseaseId })
+      .from(schema.tickDiseases)
+      .where(eq(schema.tickDiseases.tickId, row.id)),
+    db
+      .select({ removalTechniqueId: schema.tickRemovalTechniques.removalTechniqueId })
+      .from(schema.tickRemovalTechniques)
+      .where(eq(schema.tickRemovalTechniques.tickId, row.id)),
+  ])
 
   const initial: TickFormInitial = {
     commonName: row.commonName,
@@ -30,7 +48,8 @@ export default async function EditTickPage({
     heroHeadColor: row.heroHeadColor ?? DEFAULT_TICK_ART.headColor,
     heroBodyColor: row.heroBodyColor ?? DEFAULT_TICK_ART.bodyColor,
     heroLegColor: row.heroLegColor ?? DEFAULT_TICK_ART.legColor,
-    diseases: row.diseases,
+    diseaseIds: diseaseLinks.map((d) => d.diseaseId),
+    removalTechniqueIds: techniqueLinks.map((t) => t.removalTechniqueId),
   }
 
   async function deleteAction() {
@@ -48,16 +67,27 @@ export default async function EditTickPage({
         <em>{row.scientificName}</em>
       </p>
 
-      <TickForm action={upsertTick} initial={initial} mode="edit" />
+      <TickForm
+        action={upsertTick}
+        initial={initial}
+        mode="edit"
+        diseases={diseases.map((d) => ({ value: String(d.id), label: d.displayName }))}
+        techniques={techniques.map((t) => ({ value: String(t.id), label: t.title }))}
+      />
 
       <div className="card" style={{ borderColor: 'var(--error)' }}>
         <h3 style={{ color: 'var(--error)', marginTop: 0 }}>Danger zone</h3>
         <p className="muted" style={{ marginBottom: '0.75rem' }}>
-          Deletes this tick row. Cascades to <code>tick_state</code>, <code>tick_county</code>,
-          and nulls <code>wild_facts.tick_id</code>.
+          Deletes this tick row. Cascades through <code>tick_state</code>,{' '}
+          <code>tick_county</code>, <code>tick_diseases</code>,{' '}
+          <code>tick_removal_techniques</code>, and <code>wild_fact_ticks</code>.
         </p>
         <form action={deleteAction}>
-          <button type="submit" className="secondary" style={{ borderColor: 'var(--error)', color: 'var(--error)' }}>
+          <button
+            type="submit"
+            className="secondary"
+            style={{ borderColor: 'var(--error)', color: 'var(--error)' }}
+          >
             Delete tick
           </button>
         </form>

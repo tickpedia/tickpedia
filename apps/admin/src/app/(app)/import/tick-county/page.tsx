@@ -18,7 +18,7 @@ import {
   type MultiTickColumnPair,
   type IngestSummary,
 } from '@tickpedia/db/ingest'
-import { parseXlsx, parseXlsxAtRow } from '../../../../lib/xlsx'
+import { parseSpreadsheetInput } from '../../../../lib/xlsx'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import TickCountyImportForm from './TickCountyImportForm'
 
@@ -33,20 +33,15 @@ async function importAction(
   form: FormData,
 ): Promise<IngestSummary | null> {
   'use server'
-  const file = form.get('file')
   const year = Number(form.get('year'))
   const mode = String(form.get('mode') ?? 'single')
   const headerRow = Number(form.get('headerRow') ?? 0)
   const tickSlug = String(form.get('tickSlug') ?? '')
   const keepNoRecords = form.get('keepNoRecords') === 'on'
-  if (!(file instanceof File) || file.size === 0) return null
   if (!Number.isInteger(year)) return null
 
-  const buf = await file.arrayBuffer()
-  const sheet =
-    headerRow > 0
-      ? parseXlsxAtRow(buf, { headerRow })
-      : parseXlsx(buf)
+  const sheet = await parseSpreadsheetInput(form, { headerRow: headerRow > 0 ? headerRow : 0 })
+  if (!sheet) return null
 
   if (mode === 'single') {
     if (!tickSlug) return null

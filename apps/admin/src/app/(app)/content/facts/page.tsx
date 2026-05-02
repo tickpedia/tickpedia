@@ -1,66 +1,79 @@
-import { revalidatePath } from 'next/cache'
+import Link from 'next/link'
+import type { Route } from 'next'
+import { sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
-import { desc, eq } from 'drizzle-orm'
-import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import FactForm from './FactForm'
-
-async function addFact(form: FormData): Promise<{ ok: boolean; error?: string }> {
-  'use server'
-  const body = String(form.get('body') ?? '').trim()
-  const citationUrl = String(form.get('citationUrl') ?? '').trim() || null
-  const tickIdRaw = String(form.get('tickId') ?? '').trim()
-  const tickId = tickIdRaw ? Number(tickIdRaw) : null
-
-  if (body.length < 10) return { ok: false, error: 'Body is too short.' }
-
-  const db = connect(process.env.DATABASE_URL)
-  await db.insert(schema.wildFacts).values({ body, citationUrl, tickId })
-  await notifySemilayer('wildFacts')
-  revalidatePath('/content/facts')
-  return { ok: true }
-}
-
-async function deleteFact(form: FormData): Promise<void> {
-  'use server'
-  const id = Number(form.get('id'))
-  if (!Number.isInteger(id)) return
-  const db = connect(process.env.DATABASE_URL)
-  await db.delete(schema.wildFacts).where(eq(schema.wildFacts.id, id))
-  await notifySemilayer('wildFacts')
-  revalidatePath('/content/facts')
-}
+import { createFact } from './actions'
 
 export default async function Page() {
   const db = connect(process.env.DATABASE_URL)
-  const [facts, ticks] = await Promise.all([
-    db
-      .select({
-        id: schema.wildFacts.id,
-        body: schema.wildFacts.body,
-        citationUrl: schema.wildFacts.citationUrl,
-        tickId: schema.wildFacts.tickId,
-        updatedAt: schema.wildFacts.updatedAt,
-      })
-      .from(schema.wildFacts)
-      .orderBy(desc(schema.wildFacts.updatedAt))
-      .limit(50),
+
+  const rows = (await db.execute(sql`
+    select
+      f.id,
+      f.body,
+      f.citation_url as "citationUrl",
+      f.updated_at   as "updatedAt",
+      coalesce((
+        select string_agg(t.common_name, ', ' order by t.common_name)
+        from wild_fact_ticks ft
+        join ticks t on t.id = ft.tick_id
+        where ft.wild_fact_id = f.id
+      ), '') as "tickList",
+      coalesce((
+        select string_agg(d.display_name, ', ' order by d.display_name)
+        from wild_fact_diseases fd
+        join diseases d on d.id = fd.disease_id
+        where fd.wild_fact_id = f.id
+      ), '') as "diseaseList"
+    from wild_facts f
+    order by f.updated_at desc
+    limit 100
+  `)) as unknown as { rows: Row[] } | Row[]
+
+  type Row = {
+    id: number
+    body: string
+    citationUrl: string | null
+    updatedAt: Date | string
+    tickList: string
+    diseaseList: string
+  }
+
+  const facts: Row[] = Array.isArray(rows) ? rows : rows.rows
+
+  const [ticks, diseases, techniques] = await Promise.all([
     db
       .select({ id: schema.ticks.id, commonName: schema.ticks.commonName })
       .from(schema.ticks)
       .orderBy(schema.ticks.commonName),
+    db
+      .select({ id: schema.diseases.id, displayName: schema.diseases.displayName })
+      .from(schema.diseases)
+      .orderBy(schema.diseases.displayName),
+    db
+      .select({ id: schema.removalTechniques.id, title: schema.removalTechniques.title })
+      .from(schema.removalTechniques)
+      .orderBy(schema.removalTechniques.title),
   ])
 
   return (
     <div>
       <h1>Wild facts</h1>
       <p className="muted">
-        Short, citable facts shown next to ticks on the public site. Keep them surprising.
+        Short, citable facts shown next to ticks on the public site. Keep them surprising. A fact
+        can attach to multiple ticks, diseases, and removal techniques.
       </p>
 
-      <FactForm addAction={addFact} ticks={ticks} />
+      <FactForm
+        action={createFact}
+        ticks={ticks.map((t) => ({ value: String(t.id), label: t.commonName }))}
+        diseases={diseases.map((d) => ({ value: String(d.id), label: d.displayName }))}
+        techniques={techniques.map((t) => ({ value: String(t.id), label: t.title }))}
+      />
 
       <div className="card">
-        <h3>Recent facts</h3>
+        <h3>Recent facts ({facts.length})</h3>
         {facts.length === 0 ? (
           <p className="muted">None yet.</p>
         ) : (
@@ -68,27 +81,34 @@ export default async function Page() {
             <thead>
               <tr>
                 <th>Body</th>
-                <th>Tick</th>
+                <th>Ticks</th>
+                <th>Diseases</th>
                 <th>Updated</th>
-                <th />
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {facts.map((f) => (
                 <tr key={f.id}>
-                  <td>
+                  <td style={{ maxWidth: 400 }}>
                     {f.body.slice(0, 200)}
                     {f.body.length > 200 ? '…' : ''}
                   </td>
-                  <td>{ticks.find((t) => t.id === f.tickId)?.commonName ?? '—'}</td>
-                  <td>{f.updatedAt.toISOString().slice(0, 10)}</td>
+                  <td className="muted">{f.tickList || '—'}</td>
+                  <td className="muted">{f.diseaseList || '—'}</td>
                   <td>
-                    <form action={deleteFact}>
-                      <input type="hidden" name="id" value={f.id} />
-                      <button type="submit" className="secondary">
-                        Delete
-                      </button>
-                    </form>
+                    {(f.updatedAt instanceof Date ? f.updatedAt : new Date(f.updatedAt))
+                      .toISOString()
+                      .slice(0, 10)}
+                  </td>
+                  <td>
+                    <Link
+                      href={`/content/facts/${f.id}` as Route}
+                      className="button secondary"
+                      style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                    >
+                      Edit
+                    </Link>
                   </td>
                 </tr>
               ))}

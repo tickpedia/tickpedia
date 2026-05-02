@@ -43,11 +43,20 @@ const NAV: NavSection[] = [
     items: [{ href: '/data', label: 'Locations' }],
   },
   {
-    heading: 'Imports',
+    heading: 'Imports (xlsx/csv)',
     items: [
       { href: '/import/cdc-county', label: 'CDC disease counts' },
       { href: '/import/tick-county', label: 'Tick presence (county)' },
       { href: '/import/cdc-month', label: 'CDC monthly counts' },
+    ],
+  },
+  {
+    heading: 'Imports (JSON)',
+    items: [
+      { href: '/import/json/ticks', label: 'Ticks' },
+      { href: '/import/json/diseases', label: 'Diseases' },
+      { href: '/import/json/facts', label: 'Wild facts' },
+      { href: '/import/json/techniques', label: 'Removal techniques' },
     ],
   },
   {

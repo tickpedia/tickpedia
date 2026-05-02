@@ -38,6 +38,90 @@ export function parseXlsx(buf: ArrayBuffer, sheetName?: string): ParsedSheet {
   )
 }
 
+// CSV-text variant of parseXlsx — same shape, fed a string instead of
+// an ArrayBuffer. Used for the "paste CSV" textarea on the import pages.
+export function parseCsv(text: string, sheetName?: string): ParsedSheet {
+  const wb = XLSX.read(text, { type: 'string', cellDates: true })
+  const candidates = sheetName ? [sheetName] : wb.SheetNames
+  for (const name of candidates) {
+    const ws = wb.Sheets[name]
+    if (!ws) continue
+    const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+      defval: null,
+      blankrows: false,
+    })
+    if (json.length === 0) continue
+    const headers = Object.keys(json[0] ?? {})
+    if (headers.length < 2) continue
+    return { headers, rows: json, sheetName: name }
+  }
+  throw new Error('No usable data found in pasted CSV')
+}
+
+export function parseCsvAtRow(
+  text: string,
+  options: { headerRow: number; sheetName?: string },
+): ParsedSheet {
+  const wb = XLSX.read(text, { type: 'string', cellDates: true })
+  const candidates = options.sheetName ? [options.sheetName] : wb.SheetNames
+  for (const name of candidates) {
+    const ws = wb.Sheets[name]
+    if (!ws) continue
+    const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+      header: 1,
+      defval: null,
+      blankrows: false,
+    })
+    if (aoa.length <= options.headerRow) continue
+    const headers = (aoa[options.headerRow] ?? []).map((h) => String(h ?? '').trim())
+    if (headers.filter(Boolean).length < 2) continue
+    const rows: Record<string, unknown>[] = []
+    for (let i = options.headerRow + 1; i < aoa.length; i++) {
+      const row = aoa[i] ?? []
+      const obj: Record<string, unknown> = {}
+      for (let c = 0; c < headers.length; c++) {
+        const key = headers[c]
+        if (!key) continue
+        obj[key] = row[c] ?? null
+      }
+      rows.push(obj)
+    }
+    return { headers: headers.filter(Boolean), rows, sheetName: name }
+  }
+  throw new Error('No usable data found in pasted CSV')
+}
+
+// Unified loader for the import pages: pulls either the file upload
+// or the pasted text and routes to the right parser. Returns null when
+// neither slot was filled.
+export async function parseSpreadsheetInput(
+  form: FormData,
+  options: { headerRow?: number; sheetName?: string } = {},
+): Promise<ParsedSheet | null> {
+  const headerRow = options.headerRow ?? 0
+  const sheetName = options.sheetName
+  const file = form.get('file')
+  const blob = String(form.get('blob') ?? '').trim()
+  if (file instanceof File && file.size > 0) {
+    const buf = await file.arrayBuffer()
+    if (headerRow > 0) {
+      return sheetName
+        ? parseXlsxAtRow(buf, { headerRow, sheetName })
+        : parseXlsxAtRow(buf, { headerRow })
+    }
+    return parseXlsx(buf, sheetName)
+  }
+  if (blob) {
+    if (headerRow > 0) {
+      return sheetName
+        ? parseCsvAtRow(blob, { headerRow, sheetName })
+        : parseCsvAtRow(blob, { headerRow })
+    }
+    return parseCsv(blob, sheetName)
+  }
+  return null
+}
+
 // CDC's per-county tick file uses a banner row before the actual
 // header. SheetJS's default sheet_to_json treats row 0 as the header.
 // `parseWithHeaderRow` lets the caller skip n rows before reading.

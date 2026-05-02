@@ -7,9 +7,9 @@ import { beam } from '../lib/beam'
 
 interface FactRow {
   id: number
+  slug: string
   body: string
   citationUrl: string | null
-  tickId: number | null
   createdAt: string
 }
 

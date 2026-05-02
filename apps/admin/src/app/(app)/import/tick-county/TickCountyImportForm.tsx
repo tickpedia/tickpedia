@@ -92,8 +92,18 @@ export default function TickCountyImportForm({
       </div>
 
       <div className="field">
-        <label htmlFor="file">XLSX file</label>
-        <input id="file" name="file" type="file" accept=".xlsx" required />
+        <label htmlFor="file">File (.xlsx or .csv)</label>
+        <input id="file" name="file" type="file" accept=".xlsx,.csv" />
+      </div>
+      <div className="field">
+        <label htmlFor="blob">…or paste CSV</label>
+        <textarea
+          id="blob"
+          name="blob"
+          rows={6}
+          placeholder="FIPS,State,County,Status,Source,…"
+          style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '0.85rem' }}
+        />
       </div>
 
       <button type="submit" disabled={pending}>

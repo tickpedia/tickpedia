@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Route } from 'next'
+import { sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { TickArt, hasTickArt } from '@tickpedia/ui'
 import TickForm from './TickForm'
@@ -7,21 +8,64 @@ import { upsertTick } from './actions'
 
 export default async function Page() {
   const db = connect(process.env.DATABASE_URL)
-  const ticks = await db
-    .select({
-      id: schema.ticks.id,
-      slug: schema.ticks.slug,
-      commonName: schema.ticks.commonName,
-      scientificName: schema.ticks.scientificName,
-      dangerLevel: schema.ticks.dangerLevel,
-      diseases: schema.ticks.diseases,
-      heroHeadColor: schema.ticks.heroHeadColor,
-      heroBodyColor: schema.ticks.heroBodyColor,
-      heroLegColor: schema.ticks.heroLegColor,
-      updatedAt: schema.ticks.updatedAt,
-    })
-    .from(schema.ticks)
-    .orderBy(schema.ticks.commonName)
+
+  // One round-trip: ticks + a CSV of disease names per tick + a CSV of
+  // removal-technique titles per tick. agg_array would be tighter but
+  // string_agg keeps us off Drizzle's PgArray decoder.
+  const rows = (await db.execute(sql`
+    select
+      t.id,
+      t.slug,
+      t.common_name        as "commonName",
+      t.scientific_name    as "scientificName",
+      t.danger_level       as "dangerLevel",
+      t.hero_head_color    as "heroHeadColor",
+      t.hero_body_color    as "heroBodyColor",
+      t.hero_leg_color     as "heroLegColor",
+      t.updated_at         as "updatedAt",
+      coalesce((
+        select string_agg(d.display_name, ', ' order by d.display_name)
+        from tick_diseases td
+        join diseases d on d.id = td.disease_id
+        where td.tick_id = t.id
+      ), '') as "diseaseList",
+      coalesce((
+        select count(*) from tick_removal_techniques tr where tr.tick_id = t.id
+      ), 0)::int as "techniqueCount"
+    from ticks t
+    order by t.common_name
+  `)) as unknown as
+    | { rows: TickRow[] }
+    | TickRow[]
+
+  type TickRow = {
+    id: number
+    slug: string
+    commonName: string
+    scientificName: string
+    dangerLevel: 'low' | 'medium' | 'high'
+    heroHeadColor: string | null
+    heroBodyColor: string | null
+    heroLegColor: string | null
+    updatedAt: Date | string
+    diseaseList: string
+    techniqueCount: number
+  }
+
+  const ticks: TickRow[] = Array.isArray(rows) ? rows : rows.rows
+
+  // Pillbox feeds for the create form — full editing surface lives on
+  // the per-slug page.
+  const [diseases, techniques] = await Promise.all([
+    db
+      .select({ id: schema.diseases.id, displayName: schema.diseases.displayName })
+      .from(schema.diseases)
+      .orderBy(schema.diseases.displayName),
+    db
+      .select({ id: schema.removalTechniques.id, title: schema.removalTechniques.title })
+      .from(schema.removalTechniques)
+      .orderBy(schema.removalTechniques.title),
+  ])
 
   return (
     <div>
@@ -31,7 +75,11 @@ export default async function Page() {
         county presence imports.
       </p>
 
-      <TickForm action={upsertTick} />
+      <TickForm
+        action={upsertTick}
+        diseases={diseases.map((d) => ({ value: String(d.id), label: d.displayName }))}
+        techniques={techniques.map((t) => ({ value: String(t.id), label: t.title }))}
+      />
 
       <div className="card">
         <h3>All ticks ({ticks.length})</h3>
@@ -43,6 +91,7 @@ export default async function Page() {
               <th>Scientific</th>
               <th>Danger</th>
               <th>Diseases</th>
+              <th>Techniques</th>
               <th>Updated</th>
               <th></th>
             </tr>
@@ -89,8 +138,13 @@ export default async function Page() {
                     {t.dangerLevel}
                   </span>
                 </td>
-                <td className="muted">{t.diseases.join(', ') || '—'}</td>
-                <td>{t.updatedAt.toISOString().slice(0, 10)}</td>
+                <td className="muted">{t.diseaseList || '—'}</td>
+                <td className="muted">{t.techniqueCount || '—'}</td>
+                <td>
+                  {(t.updatedAt instanceof Date ? t.updatedAt : new Date(t.updatedAt))
+                    .toISOString()
+                    .slice(0, 10)}
+                </td>
                 <td>
                   <Link
                     href={`/content/ticks/${t.slug}` as Route}

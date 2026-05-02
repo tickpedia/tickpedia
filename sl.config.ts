@@ -75,15 +75,20 @@ export default defineConfig({
         heroBodyColor: { type: 'text', from: 'hero_body_color' },
         heroLegColor: { type: 'text', from: 'hero_leg_color' },
         dangerLevel: { type: 'text', from: 'danger_level', searchable: true },
-        diseases: { type: 'text', array: true, searchable: { weight: 2 } },
         createdAt: { type: 'date', from: 'created_at' },
         updatedAt: { type: 'date', from: 'updated_at' },
       },
       changeTrackingColumn: 'updatedAt',
       syncInterval: '5m',
       smartSyncInterval: '24h',
+      // M:N joins surface as their own lenses (tickDiseases, etc.) so a
+      // caller chains: ticks → diseaseRefs → disease. The join lens
+      // carries `belongsTo` to both sides, so the typed include works
+      // both directions without a `hasManyThrough` macro.
       relations: {
-        wildFacts: { lens: 'wildFacts', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 10 },
+        diseaseRefs: { lens: 'tickDiseases', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 50 },
+        removalTechniqueRefs: { lens: 'tickRemovalTechniques', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 50 },
+        wildFactRefs: { lens: 'wildFactTicks', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 50 },
         states: { lens: 'tickState', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 100 },
         counties: { lens: 'tickCounty', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 5000 },
       },
@@ -112,9 +117,9 @@ export default defineConfig({
       table: 'wild_facts',
       fields: {
         id: { type: 'number', primaryKey: true },
+        slug: { type: 'text', searchable: true },
         body: { type: 'text', searchable: { weight: 2 } },
         citationUrl: { type: 'text', from: 'citation_url' },
-        tickId: { type: 'number', from: 'tick_id' },
         createdAt: { type: 'date', from: 'created_at' },
         updatedAt: { type: 'date', from: 'updated_at' },
       },
@@ -122,7 +127,9 @@ export default defineConfig({
       syncInterval: '5m',
       smartSyncInterval: '24h',
       relations: {
-        tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
+        tickRefs: { lens: 'wildFactTicks', kind: 'hasMany', on: { id: 'wildFactId' }, defaultIncludeLimit: 20 },
+        diseaseRefs: { lens: 'wildFactDiseases', kind: 'hasMany', on: { id: 'wildFactId' }, defaultIncludeLimit: 20 },
+        removalTechniqueRefs: { lens: 'wildFactRemovalTechniques', kind: 'hasMany', on: { id: 'wildFactId' }, defaultIncludeLimit: 20 },
       },
       feeds: {
         latest: {
@@ -164,6 +171,10 @@ export default defineConfig({
       changeTrackingColumn: 'updatedAt',
       syncInterval: '5m',
       smartSyncInterval: '24h',
+      relations: {
+        tickRefs: { lens: 'tickRemovalTechniques', kind: 'hasMany', on: { id: 'removalTechniqueId' }, defaultIncludeLimit: 50 },
+        wildFactRefs: { lens: 'wildFactRemovalTechniques', kind: 'hasMany', on: { id: 'removalTechniqueId' }, defaultIncludeLimit: 50 },
+      },
       feeds: {
         latest: {
           candidates: { from: 'recent', limit: 50 },
@@ -255,6 +266,8 @@ export default defineConfig({
           on: { id: 'diseaseId' },
           defaultIncludeLimit: 240, // ~20 years × 12 months
         },
+        tickRefs: { lens: 'tickDiseases', kind: 'hasMany', on: { id: 'diseaseId' }, defaultIncludeLimit: 50 },
+        wildFactRefs: { lens: 'wildFactDiseases', kind: 'hasMany', on: { id: 'diseaseId' }, defaultIncludeLimit: 50 },
       },
       feeds: {
         relatedTo: {
@@ -375,6 +388,111 @@ export default defineConfig({
       },
       relations: {
         disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
+      },
+      grants: { query: 'public' },
+    },
+
+    // ─── Editorial M:N join lenses ──────────────────────────────────
+    //
+    // Each one sits between two editorial lenses with a `belongsTo` to
+    // each side. Callers chain through them: `ticks → diseaseRefs →
+    // disease`. Numeric/foreign-key only — not searchable.
+    tickDiseases: {
+      source: 'main',
+      table: 'tick_diseases',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        tickId: { type: 'number', from: 'tick_id' },
+        diseaseId: { type: 'number', from: 'disease_id' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
+        disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
+      },
+      grants: { query: 'public' },
+    },
+
+    tickRemovalTechniques: {
+      source: 'main',
+      table: 'tick_removal_techniques',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        tickId: { type: 'number', from: 'tick_id' },
+        removalTechniqueId: { type: 'number', from: 'removal_technique_id' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
+        removalTechnique: { lens: 'removalTechniques', kind: 'belongsTo', on: { removalTechniqueId: 'id' } },
+      },
+      grants: { query: 'public' },
+    },
+
+    wildFactTicks: {
+      source: 'main',
+      table: 'wild_fact_ticks',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        wildFactId: { type: 'number', from: 'wild_fact_id' },
+        tickId: { type: 'number', from: 'tick_id' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        wildFact: { lens: 'wildFacts', kind: 'belongsTo', on: { wildFactId: 'id' } },
+        tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
+      },
+      grants: { query: 'public' },
+    },
+
+    wildFactDiseases: {
+      source: 'main',
+      table: 'wild_fact_diseases',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        wildFactId: { type: 'number', from: 'wild_fact_id' },
+        diseaseId: { type: 'number', from: 'disease_id' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        wildFact: { lens: 'wildFacts', kind: 'belongsTo', on: { wildFactId: 'id' } },
+        disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
+      },
+      grants: { query: 'public' },
+    },
+
+    wildFactRemovalTechniques: {
+      source: 'main',
+      table: 'wild_fact_removal_techniques',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        wildFactId: { type: 'number', from: 'wild_fact_id' },
+        removalTechniqueId: { type: 'number', from: 'removal_technique_id' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        wildFact: { lens: 'wildFacts', kind: 'belongsTo', on: { wildFactId: 'id' } },
+        removalTechnique: { lens: 'removalTechniques', kind: 'belongsTo', on: { removalTechniqueId: 'id' } },
       },
       grants: { query: 'public' },
     },
