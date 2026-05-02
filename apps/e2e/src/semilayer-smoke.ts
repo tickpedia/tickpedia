@@ -18,18 +18,14 @@
 // ride the admin's service key from server actions and are out of
 // scope for this smoke.
 //
-// Analyses split into two groups:
-//   * LOCAL — every dimension/measure column lives on the lens.
-//     Run via `client.analyze()`; assert envelope, non-empty buckets
-//     where data exists, and `meta.strategy === 'pushdown'` so a
-//     silent regression to streaming would fail loudly.
-//   * CROSS-SOURCE — dimension uses `through:` to hop a relation.
-//     Currently expected to surface a structured 501 with
-//     `unsupported_relation`. We assert that, so a regression to a
-//     bare 500 catches. When the platform lights up cross-source
-//     aggregation, flip these into LOCAL.
+// Every analyze runs end-to-end via `client.analyze()`; the smoke
+// asserts envelope, non-empty buckets where data exists, and a
+// per-metric expected `meta.strategy` so a silent fallback to
+// streaming would fail loudly. Most analyses use `pushdown`; the
+// two with `dim.through` use `through` (the planner hops the
+// declared belongsTo relation).
 
-import { BeamClient, BeamError } from '@semilayer/client'
+import { BeamClient } from '@semilayer/client'
 
 interface LensCheck {
   lens: string
@@ -109,6 +105,9 @@ const FEED_CHECKS: readonly FeedCheck[] = [
 interface AnalyzeRunCheck {
   lens: string
   name: string
+  // Default 'pushdown'; analyses that hop a relation via `dim.through`
+  // run as 'through'.
+  expectedStrategy?: string
   // Source data may be empty for some metrics (e.g. diseaseMonth before
   // monthly imports). emptyOk skips the "no buckets" failure.
   emptyOk?: boolean
@@ -118,32 +117,12 @@ const ANALYZE_RUN_CHECKS: readonly AnalyzeRunCheck[] = [
   { lens: 'tickDiseases', name: 'diseasesPerTick' },
   { lens: 'tickDiseases', name: 'ticksPerDisease' },
   { lens: 'tickCounty', name: 'establishedRange' },
+  { lens: 'tickCounty', name: 'establishedByState', expectedStrategy: 'through' },
   { lens: 'tickCounty', name: 'spreadOverTime' },
   { lens: 'diseaseCountyYear', name: 'casesByYear' },
+  { lens: 'diseaseCountyYear', name: 'casesByState', expectedStrategy: 'through' },
   { lens: 'diseaseCountyYear', name: 'countyHotspots' },
   { lens: 'diseaseMonth', name: 'seasonality', emptyOk: true },
-] as const
-
-interface AnalyzeCrossSourceCheck {
-  lens: string
-  name: string
-  expectedStatus: number
-  expectedDetailIncludes: string
-}
-
-const ANALYZE_CROSS_SOURCE_CHECKS: readonly AnalyzeCrossSourceCheck[] = [
-  {
-    lens: 'tickCounty',
-    name: 'establishedByState',
-    expectedStatus: 501,
-    expectedDetailIncludes: 'unsupported_relation',
-  },
-  {
-    lens: 'diseaseCountyYear',
-    name: 'casesByState',
-    expectedStatus: 501,
-    expectedDetailIncludes: 'unsupported_relation',
-  },
 ] as const
 
 function requireEnv(name: string): string {
@@ -241,9 +220,10 @@ async function main() {
     }
   }
 
-  console.log('\n-- analyses (local) --')
+  console.log('\n-- analyses --')
   for (const check of ANALYZE_RUN_CHECKS) {
     const label = `${check.lens}.${check.name}`
+    const expectedStrategy = check.expectedStrategy ?? 'pushdown'
     const startedAt = Date.now()
     try {
       const result = await client.analyze(check.lens, check.name)
@@ -258,12 +238,12 @@ async function main() {
         continue
       }
       const strategy = result.meta.strategy
-      if (strategy !== 'pushdown') {
+      if (strategy !== expectedStrategy) {
         failures.push({
           scope: `analyze:${label}`,
-          reason: `expected meta.strategy 'pushdown', got '${strategy}' (silent fallback?)`,
+          reason: `expected meta.strategy '${expectedStrategy}', got '${strategy}' (silent fallback?)`,
         })
-        console.log(`✗ ${pad(label)}  strategy=${strategy}`)
+        console.log(`✗ ${pad(label)}  strategy=${strategy} (expected ${expectedStrategy})`)
         continue
       }
       if (result.buckets.length === 0 && !check.emptyOk) {
@@ -282,44 +262,7 @@ async function main() {
     }
   }
 
-  console.log('\n-- analyses (cross-source — expected gap) --')
-  for (const check of ANALYZE_CROSS_SOURCE_CHECKS) {
-    const label = `${check.lens}.${check.name}`
-    const startedAt = Date.now()
-    try {
-      const result = await client.analyze(check.lens, check.name)
-      const tookMs = Date.now() - startedAt
-      // The platform shipped cross-source aggregation. Flag it so the
-      // smoke gets updated; treat as a soft pass for now.
-      console.log(
-        `  ${pad(label)}  ${tookMs}ms  now passing (buckets=${result.buckets.length}) — flip to local`,
-      )
-    } catch (err) {
-      const tookMs = Date.now() - startedAt
-      if (
-        err instanceof BeamError &&
-        err.status === check.expectedStatus &&
-        err.detail.includes(check.expectedDetailIncludes)
-      ) {
-        console.log(
-          `  ${pad(label)}  ${tookMs}ms  ${err.status} ${check.expectedDetailIncludes} (expected)`,
-        )
-        continue
-      }
-      const msg = err instanceof Error ? err.message : String(err)
-      failures.push({
-        scope: `analyze:${label}`,
-        reason: `expected ${check.expectedStatus} ${check.expectedDetailIncludes}, got: ${msg}`,
-      })
-      console.log(`✗ ${pad(label)}  ${msg}`)
-    }
-  }
-
-  const total =
-    LENS_CHECKS.length +
-    FEED_CHECKS.length +
-    ANALYZE_RUN_CHECKS.length +
-    ANALYZE_CROSS_SOURCE_CHECKS.length
+  const total = LENS_CHECKS.length + FEED_CHECKS.length + ANALYZE_RUN_CHECKS.length
   console.log('')
   if (failures.length > 0) {
     console.error(`✗ ${failures.length} checks failed (out of ${total})`)
