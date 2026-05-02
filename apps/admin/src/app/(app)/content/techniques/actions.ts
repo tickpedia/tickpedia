@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import { readIdList, setRelations } from '../../../../lib/relations'
+import { normalizeOneLiner } from '../../../../lib/json-import'
 
 export interface SaveResult {
   ok: boolean
@@ -26,21 +27,24 @@ export async function upsertTechnique(form: FormData): Promise<SaveResult> {
   const sourceUrl = String(form.get('sourceUrl') ?? '').trim() || null
   const slugInput = String(form.get('slug') ?? '').trim()
   const slug = slugInput || slugify(title)
+  const oneLinerResult = normalizeOneLiner(form.get('oneLiner'))
 
   if (!title) return { ok: false, error: 'Title required.' }
   if (!steps) return { ok: false, error: 'Steps required.' }
   if (!slug) return { ok: false, error: 'Slug could not be derived.' }
+  if ('error' in oneLinerResult) return { ok: false, error: oneLinerResult.error }
 
   const tickIds = readIdList(form, 'tickIds')
 
   const db = connect(process.env.DATABASE_URL)
   await db
     .insert(schema.removalTechniques)
-    .values({ slug, title, steps, sourceUrl })
+    .values({ slug, title, oneLiner: oneLinerResult.value, steps, sourceUrl })
     .onConflictDoUpdate({
       target: schema.removalTechniques.slug,
       set: {
         title: sql`EXCLUDED.title`,
+        oneLiner: sql`EXCLUDED.one_liner`,
         steps: sql`EXCLUDED.steps`,
         sourceUrl: sql`EXCLUDED.source_url`,
         updatedAt: sql`now()`,

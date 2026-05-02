@@ -21,7 +21,12 @@ import { sql, inArray } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { notifySemilayer } from '../../../../../lib/semilayer-notify'
 import { setRelations } from '../../../../../lib/relations'
-import { emptySummary, readJsonInput, type ImportSummary } from '../../../../../lib/json-import'
+import {
+  emptySummary,
+  normalizeOneLiner,
+  readJsonInput,
+  type ImportSummary,
+} from '../../../../../lib/json-import'
 import JsonImportForm from '../../../../components/JsonImportForm'
 
 const SCHEMA_HINT = `[
@@ -29,6 +34,7 @@ const SCHEMA_HINT = `[
     "slug": "ixodes-scapularis",
     "commonName": "Black-legged tick",
     "scientificName": "Ixodes scapularis",
+    "oneLiner": "The black-legged tick is the primary US vector of Lyme disease, established across the Northeast, Upper Midwest, and Mid-Atlantic.",
     "dangerLevel": "high",
     "heroHeadColor": "#3a2a1a",
     "heroBodyColor": "#7a4a2a",
@@ -95,6 +101,11 @@ async function importAction(
     const heroHeadColor = isHexColor(rec.heroHeadColor) ? rec.heroHeadColor.toLowerCase() : null
     const heroBodyColor = isHexColor(rec.heroBodyColor) ? rec.heroBodyColor.toLowerCase() : null
     const heroLegColor = isHexColor(rec.heroLegColor) ? rec.heroLegColor.toLowerCase() : null
+    const oneLinerResult = normalizeOneLiner(rec.oneLiner)
+    if ('error' in oneLinerResult) {
+      summary.errors.push({ row: i, reason: oneLinerResult.error })
+      continue
+    }
 
     try {
       await db
@@ -103,6 +114,7 @@ async function importAction(
           slug,
           commonName,
           scientificName,
+          oneLiner: oneLinerResult.value,
           dangerLevel,
           heroPhotoUrl,
           heroHeadColor,
@@ -114,6 +126,7 @@ async function importAction(
           set: {
             commonName: sql`EXCLUDED.common_name`,
             scientificName: sql`EXCLUDED.scientific_name`,
+            oneLiner: sql`EXCLUDED.one_liner`,
             dangerLevel: sql`EXCLUDED.danger_level`,
             heroPhotoUrl: sql`EXCLUDED.hero_photo_url`,
             heroHeadColor: sql`EXCLUDED.hero_head_color`,

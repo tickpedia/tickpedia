@@ -43,6 +43,7 @@ export default async function EditTickPage({
     commonName: row.commonName,
     scientificName: row.scientificName,
     slug: row.slug,
+    oneLiner: row.oneLiner ?? '',
     dangerLevel: row.dangerLevel,
     heroPhotoUrl: row.heroPhotoUrl ?? '',
     heroHeadColor: row.heroHeadColor ?? DEFAULT_TICK_ART.headColor,

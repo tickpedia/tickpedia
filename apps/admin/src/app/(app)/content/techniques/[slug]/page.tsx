@@ -33,6 +33,7 @@ export default async function EditTechniquePage({
   const initial: TechniqueFormInitial = {
     title: row.title,
     slug: row.slug,
+    oneLiner: row.oneLiner ?? '',
     steps: row.steps,
     sourceUrl: row.sourceUrl ?? '',
     tickIds: tickLinks.map((t) => t.tickId),

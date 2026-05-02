@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useEffect } from 'react'
 import Pillbox, { type PillboxOption } from '../../../components/Pillbox'
+import OneLinerField from '../../../components/OneLinerField'
 
 type Result = { ok: boolean; error?: string }
 const init: Result = { ok: false }
@@ -9,12 +10,20 @@ const init: Result = { ok: false }
 export interface TechniqueFormInitial {
   title: string
   slug: string
+  oneLiner: string
   steps: string
   sourceUrl: string
   tickIds: number[]
 }
 
-const EMPTY: TechniqueFormInitial = { title: '', slug: '', steps: '', sourceUrl: '', tickIds: [] }
+const EMPTY: TechniqueFormInitial = {
+  title: '',
+  slug: '',
+  oneLiner: '',
+  steps: '',
+  sourceUrl: '',
+  tickIds: [],
+}
 
 export default function TechniqueForm({
   action,
@@ -57,6 +66,7 @@ export default function TechniqueForm({
           placeholder="auto"
         />
       </div>
+      <OneLinerField initial={start.oneLiner} />
       <div className="field">
         <label htmlFor="steps">Steps (one per line)</label>
         <textarea id="steps" name="steps" rows={6} required defaultValue={start.steps} />

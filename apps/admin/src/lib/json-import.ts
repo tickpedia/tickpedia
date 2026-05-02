@@ -16,6 +16,26 @@ export function emptySummary(): ImportSummary {
   return { applied: 0, skipped: 0, errors: [] }
 }
 
+// SEO oneLiner normalizer. ≤155 char target, 200 hard cap.
+//
+// `value`: trimmed string, or null when input is empty / not a string.
+//          Whitespace-only and empty inputs both collapse to null so an
+//          unset field doesn't ship as an empty meta description.
+// `error`: only returned when the trimmed string exceeds 200 chars,
+//          which is the importer's hard reject. The 155 target is an
+//          editorial guideline surfaced in the form UI, not a server
+//          reject — past content can still ship at 156–200 if needed.
+export const ONE_LINER_HARD_CAP = 200
+export function normalizeOneLiner(input: unknown): { value: string | null } | { error: string } {
+  if (typeof input !== 'string') return { value: null }
+  const trimmed = input.trim()
+  if (!trimmed) return { value: null }
+  if (trimmed.length > ONE_LINER_HARD_CAP) {
+    return { error: `oneLiner exceeds ${ONE_LINER_HARD_CAP} chars (got ${trimmed.length})` }
+  }
+  return { value: trimmed }
+}
+
 // Pulls the JSON payload from either a `file` field or a `blob`
 // textarea. Returns `null` if both are empty.
 export async function readJsonInput(form: FormData): Promise<unknown[] | { error: string } | null> {

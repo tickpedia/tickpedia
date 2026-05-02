@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import { readIdList, setRelations } from '../../../../lib/relations'
+import { normalizeOneLiner } from '../../../../lib/json-import'
 
 export interface SaveResult {
   ok: boolean
@@ -36,10 +37,12 @@ function readFormFields(form: FormData) {
   const heroHeadColor = normaliseColor(form.get('heroHeadColor'))
   const heroBodyColor = normaliseColor(form.get('heroBodyColor'))
   const heroLegColor = normaliseColor(form.get('heroLegColor'))
+  const oneLiner = normalizeOneLiner(form.get('oneLiner'))
   return {
     commonName,
     scientificName,
     slug: slugInput || slugify(scientificName || commonName),
+    oneLiner,
     dangerLevel,
     heroPhotoUrl,
     heroHeadColor,
@@ -53,6 +56,7 @@ export async function upsertTick(form: FormData): Promise<SaveResult> {
   if (!v.commonName) return { ok: false, error: 'Common name required.' }
   if (!v.scientificName) return { ok: false, error: 'Scientific name required.' }
   if (!v.slug) return { ok: false, error: 'Slug could not be derived.' }
+  if ('error' in v.oneLiner) return { ok: false, error: v.oneLiner.error }
 
   const diseaseIds = readIdList(form, 'diseaseIds')
   const removalTechniqueIds = readIdList(form, 'removalTechniqueIds')
@@ -60,12 +64,13 @@ export async function upsertTick(form: FormData): Promise<SaveResult> {
   const db = connect(process.env.DATABASE_URL)
   await db
     .insert(schema.ticks)
-    .values(v)
+    .values({ ...v, oneLiner: v.oneLiner.value })
     .onConflictDoUpdate({
       target: schema.ticks.slug,
       set: {
         commonName: sql`EXCLUDED.common_name`,
         scientificName: sql`EXCLUDED.scientific_name`,
+        oneLiner: sql`EXCLUDED.one_liner`,
         dangerLevel: sql`EXCLUDED.danger_level`,
         heroPhotoUrl: sql`EXCLUDED.hero_photo_url`,
         heroHeadColor: sql`EXCLUDED.hero_head_color`,

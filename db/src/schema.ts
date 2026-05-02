@@ -37,6 +37,10 @@ export const ticks = pgTable(
     slug: text('slug').notNull(),
     commonName: text('common_name').notNull(),
     scientificName: text('scientific_name').notNull(),
+    // SEO meta description + page subtitle. ≤155 chars by editorial
+    // contract; 200 hard cap enforced at the import boundary. Nullable
+    // so existing rows stay valid before the JSON re-import populates.
+    oneLiner: text('one_liner'),
     heroPhotoUrl: text('hero_photo_url'),
     // Hero art parameters. Admin picks colors; the public site renders
     // the SVG from these. Nullable so existing rows stay valid until an
@@ -158,6 +162,7 @@ export const removalTechniques = pgTable(
     id: serial('id').primaryKey(),
     slug: text('slug').notNull(),
     title: text('title').notNull(),
+    oneLiner: text('one_liner'),
     steps: text('steps').notNull(),
     sourceUrl: text('source_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

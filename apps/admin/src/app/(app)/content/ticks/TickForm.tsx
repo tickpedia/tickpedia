@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { TickArt, DEFAULT_TICK_ART, type TickArtColors } from '@tickpedia/ui'
 import Pillbox, { type PillboxOption } from '../../../components/Pillbox'
+import OneLinerField from '../../../components/OneLinerField'
 
 type Result = { ok: boolean; error?: string }
 const init: Result = { ok: false }
@@ -11,6 +12,7 @@ export interface TickFormInitial {
   commonName: string
   scientificName: string
   slug: string
+  oneLiner: string
   dangerLevel: 'low' | 'medium' | 'high'
   heroPhotoUrl: string
   heroHeadColor: string
@@ -24,6 +26,7 @@ const EMPTY_INITIAL: TickFormInitial = {
   commonName: '',
   scientificName: '',
   slug: '',
+  oneLiner: '',
   dangerLevel: 'low',
   heroPhotoUrl: '',
   heroHeadColor: DEFAULT_TICK_ART.headColor,
@@ -105,6 +108,7 @@ export default function TickForm({
               placeholder="auto"
             />
           </div>
+          <OneLinerField initial={start.oneLiner} />
           <div className="field">
             <label htmlFor="dangerLevel">Danger level</label>
             <select id="dangerLevel" name="dangerLevel" defaultValue={start.dangerLevel}>

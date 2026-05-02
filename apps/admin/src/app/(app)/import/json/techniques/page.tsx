@@ -13,13 +13,19 @@ import { sql, eq } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { notifySemilayer } from '../../../../../lib/semilayer-notify'
 import { setRelations } from '../../../../../lib/relations'
-import { emptySummary, readJsonInput, type ImportSummary } from '../../../../../lib/json-import'
+import {
+  emptySummary,
+  normalizeOneLiner,
+  readJsonInput,
+  type ImportSummary,
+} from '../../../../../lib/json-import'
 import JsonImportForm from '../../../../components/JsonImportForm'
 
 const SCHEMA_HINT = `[
   {
     "slug": "fine-tip-tweezers",
     "title": "Fine-tip tweezers",
+    "oneLiner": "Fine-tipped tweezers grip the tick at the skin and pull straight up — the CDC's recommended removal method for any embedded tick.",
     "steps": "1. Grasp the tick as close to the skin as possible.\\n2. ...",
     "sourceUrl": "https://www.cdc.gov/...",
     "ticks": ["ixodes-scapularis"]
@@ -67,15 +73,21 @@ async function importAction(
     const slug = String(rec.slug ?? '').trim() || slugify(title)
     const sourceUrl =
       typeof rec.sourceUrl === 'string' && rec.sourceUrl.trim() ? rec.sourceUrl.trim() : null
+    const oneLinerResult = normalizeOneLiner(rec.oneLiner)
+    if ('error' in oneLinerResult) {
+      summary.errors.push({ row: i, reason: oneLinerResult.error })
+      continue
+    }
 
     try {
       await db
         .insert(schema.removalTechniques)
-        .values({ slug, title, steps, sourceUrl })
+        .values({ slug, title, oneLiner: oneLinerResult.value, steps, sourceUrl })
         .onConflictDoUpdate({
           target: schema.removalTechniques.slug,
           set: {
             title: sql`EXCLUDED.title`,
+            oneLiner: sql`EXCLUDED.one_liner`,
             steps: sql`EXCLUDED.steps`,
             sourceUrl: sql`EXCLUDED.source_url`,
             updatedAt: sql`now()`,
