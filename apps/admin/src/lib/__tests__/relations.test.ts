@@ -1,29 +1,39 @@
 import { describe, it, expect } from 'vitest'
-import { PgDialect } from 'drizzle-orm/pg-core'
+import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core'
 import { schema } from '@tickpedia/db'
-import type { SQL } from 'drizzle-orm'
 import { setRelations } from '../relations'
 
-// Drizzle's `.values()` keys must be schema TS-property names ('tickId'),
-// not DB column names ('tick_id'). The first cut of setRelations built
-// values from `column.name`, which silently inserted NULL for both
-// foreign keys and tripped the not-null constraint at runtime — but
-// only on the FIRST relation insert for a row, since pre-seeded rows
-// hit the no-op `toInsert.length === 0` branch.
-//
-// These tests pin the wire-level SQL that setRelations now produces so
-// the bug can't sneak back in via a refactor that goes back to
-// `.values({ [column.name]: id })`.
+interface AnyJoinSpec {
+  table: PgTable
+  parentColumn: AnyPgColumn
+  childColumn: AnyPgColumn
+}
 
-interface CapturedExecute {
-  sql: string
-  params: unknown[]
+// Two related bugs the seed data hid:
+//
+//  1. The first cut keyed `.values()` rows on `column.name` (the DB
+//     column name, snake_case). Drizzle wants the schema's TS property
+//     name (`tickId`); unmapped keys are silently dropped → not-null
+//     FK constraint trips at the DB.
+//  2. The first attempted fix used a raw sql template with column
+//     references, but Drizzle renders an interpolated column ref as
+//     the table-qualified form (`"tick_diseases"."tick_id"`), which
+//     Postgres rejects in INSERT column lists. PG's error is
+//     "column 'tick_diseases' of relation 'tick_diseases' does not
+//     exist" because it parses the dotted form literally.
+//
+// Pre-seeded join rows hit the no-op `toInsert === 0` branch, so neither
+// bug surfaced until the first user-driven import added a fresh M:N
+// pair. These tests pin the wire shape so neither bug can sneak back.
+
+interface CapturedInsert {
+  table: unknown
+  values: Record<string, unknown>[]
 }
 
 function makeFakeDb(opts: { existingChildIds?: number[] } = {}) {
-  const dialect = new PgDialect()
-  const executes: CapturedExecute[] = []
-  const deletes: { sql: string; params: unknown[] }[] = []
+  const inserts: CapturedInsert[] = []
+  const deletes: number[] = []
 
   const db = {
     select() {
@@ -36,35 +46,29 @@ function makeFakeDb(opts: { existingChildIds?: number[] } = {}) {
         },
       }
     },
-    delete() {
+    delete(table: unknown) {
       return {
-        where: async (cond: SQL) => {
-          const compiled = dialect.sqlToQuery(cond)
-          deletes.push({ sql: compiled.sql, params: compiled.params })
+        where: async () => {
+          deletes.push((deletes.length + 1))
+          void table
         },
       }
     },
-    async execute(query: SQL) {
-      const compiled = dialect.sqlToQuery(query)
-      executes.push({ sql: compiled.sql, params: compiled.params })
-    },
-    // setRelations doesn't call this any more, but keep it so a
-    // regression that returns to `.values()` would surface here too.
-    insert() {
+    insert(table: unknown) {
       return {
-        values: async (rows: unknown) => {
-          executes.push({ sql: `INSERT-VIA-VALUES`, params: [rows] })
+        values: async (rows: Record<string, unknown>[]) => {
+          inserts.push({ table, values: rows })
         },
       }
     },
   } as never
 
-  return { db, executes, deletes }
+  return { db, inserts, deletes }
 }
 
 describe('setRelations', () => {
-  it('inserts via raw SQL using DB column names (tick_id, disease_id)', async () => {
-    const { db, executes } = makeFakeDb({ existingChildIds: [] })
+  it('passes TS property names to .values() (tickId, diseaseId), not DB names', async () => {
+    const { db, inserts } = makeFakeDb({ existingChildIds: [] })
 
     await setRelations(
       db,
@@ -77,19 +81,27 @@ describe('setRelations', () => {
       [7, 9],
     )
 
-    expect(executes).toHaveLength(1)
-    const stmt = executes[0]!
-    expect(stmt.sql.toLowerCase()).toContain('insert into "tick_diseases"')
-    expect(stmt.sql).toContain('"disease_id"')
-    expect(stmt.sql).toContain('"tick_id"')
-    expect(stmt.sql).not.toBe('INSERT-VIA-VALUES')
-    // Two child ids → two value tuples → 4 params (parentId is repeated
-    // per tuple, child id once each).
-    expect(stmt.params).toEqual([42, 7, 42, 9])
+    expect(inserts).toHaveLength(1)
+    const ins = inserts[0]!
+    expect(ins.table).toBe(schema.tickDiseases)
+    expect(ins.values).toEqual([
+      { diseaseId: 42, tickId: 7 },
+      { diseaseId: 42, tickId: 9 },
+    ])
+
+    // Negative assertions: the snake_case bug and the table-qualified
+    // bug both produce keys that match these patterns.
+    for (const row of ins.values) {
+      for (const key of Object.keys(row)) {
+        expect(key).not.toMatch(/_/) // no snake_case
+        expect(key).not.toContain('.') // no table-qualified
+        expect(key).not.toContain('"') // no quoted identifiers
+      }
+    }
   })
 
   it('skips the insert when nothing new to add', async () => {
-    const { db, executes } = makeFakeDb({ existingChildIds: [7, 9] })
+    const { db, inserts } = makeFakeDb({ existingChildIds: [7, 9] })
 
     await setRelations(
       db,
@@ -102,11 +114,11 @@ describe('setRelations', () => {
       [7, 9],
     )
 
-    expect(executes).toHaveLength(0)
+    expect(inserts).toHaveLength(0)
   })
 
   it('drops zero / NaN / negative child ids before insert', async () => {
-    const { db, executes } = makeFakeDb({ existingChildIds: [] })
+    const { db, inserts } = makeFakeDb({ existingChildIds: [] })
 
     await setRelations(
       db,
@@ -119,12 +131,14 @@ describe('setRelations', () => {
       [0, -1, Number.NaN, 5],
     )
 
-    expect(executes).toHaveLength(1)
-    expect(executes[0]!.params).toEqual([42, 5])
+    expect(inserts).toHaveLength(1)
+    expect(inserts[0]!.values).toEqual([{ diseaseId: 42, tickId: 5 }])
   })
 
   it('deletes child ids that are no longer wanted', async () => {
-    const { db, deletes, executes } = makeFakeDb({ existingChildIds: [7, 9, 11] })
+    const { db, inserts, deletes } = makeFakeDb({
+      existingChildIds: [7, 9, 11],
+    })
 
     await setRelations(
       db,
@@ -137,28 +151,74 @@ describe('setRelations', () => {
       [7, 99],
     )
 
-    expect(deletes).toHaveLength(2)
-    expect(executes).toHaveLength(1)
-    expect(executes[0]!.params).toEqual([42, 99])
+    expect(deletes.length).toBe(2)
+    expect(inserts).toHaveLength(1)
+    expect(inserts[0]!.values).toEqual([{ diseaseId: 42, tickId: 99 }])
   })
 
-  it('works for the wild_fact_diseases shape too', async () => {
-    const { db, executes } = makeFakeDb({ existingChildIds: [] })
-
-    await setRelations(
-      db,
+  it('resolves TS field names for every editorial M:N table', async () => {
+    const cases: { spec: AnyJoinSpec; expected: Record<string, number> }[] = [
       {
-        table: schema.wildFactDiseases,
-        parentColumn: schema.wildFactDiseases.wildFactId,
-        childColumn: schema.wildFactDiseases.diseaseId,
+        spec: {
+          table: schema.tickDiseases,
+          parentColumn: schema.tickDiseases.tickId,
+          childColumn: schema.tickDiseases.diseaseId,
+        },
+        expected: { tickId: 1, diseaseId: 2 },
       },
-      1,
-      [2, 3],
-    )
+      {
+        spec: {
+          table: schema.tickRemovalTechniques,
+          parentColumn: schema.tickRemovalTechniques.tickId,
+          childColumn: schema.tickRemovalTechniques.removalTechniqueId,
+        },
+        expected: { tickId: 1, removalTechniqueId: 2 },
+      },
+      {
+        spec: {
+          table: schema.wildFactTicks,
+          parentColumn: schema.wildFactTicks.wildFactId,
+          childColumn: schema.wildFactTicks.tickId,
+        },
+        expected: { wildFactId: 1, tickId: 2 },
+      },
+      {
+        spec: {
+          table: schema.wildFactDiseases,
+          parentColumn: schema.wildFactDiseases.wildFactId,
+          childColumn: schema.wildFactDiseases.diseaseId,
+        },
+        expected: { wildFactId: 1, diseaseId: 2 },
+      },
+      {
+        spec: {
+          table: schema.wildFactRemovalTechniques,
+          parentColumn: schema.wildFactRemovalTechniques.wildFactId,
+          childColumn: schema.wildFactRemovalTechniques.removalTechniqueId,
+        },
+        expected: { wildFactId: 1, removalTechniqueId: 2 },
+      },
+    ]
 
-    const stmt = executes[0]!
-    expect(stmt.sql.toLowerCase()).toContain('insert into "wild_fact_diseases"')
-    expect(stmt.sql).toContain('"wild_fact_id"')
-    expect(stmt.sql).toContain('"disease_id"')
+    for (const c of cases) {
+      const { db, inserts } = makeFakeDb({ existingChildIds: [] })
+      await setRelations(db, c.spec, 1, [2])
+      expect(inserts).toHaveLength(1)
+      expect(inserts[0]!.values).toEqual([c.expected])
+    }
+  })
+
+  it('throws if a column reference is not part of the table', async () => {
+    const { db } = makeFakeDb({ existingChildIds: [] })
+
+    const spec: AnyJoinSpec = {
+      table: schema.tickDiseases,
+      parentColumn: schema.wildFactTicks.wildFactId, // wrong table on purpose
+      childColumn: schema.tickDiseases.tickId,
+    }
+
+    await expect(setRelations(db, spec, 42, [7])).rejects.toThrow(
+      /not part of the join table/,
+    )
   })
 })

@@ -7,7 +7,7 @@
 // the Neon HTTP driver doesn't support arbitrary callbacks — and
 // admin-side concurrency on a single editor is theoretical anyway.
 
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, getTableColumns } from 'drizzle-orm'
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core'
 import type { Db } from '@tickpedia/db'
 
@@ -15,6 +15,21 @@ export interface JoinSpec<TJoin extends PgTable> {
   table: TJoin
   parentColumn: AnyPgColumn
   childColumn: AnyPgColumn
+}
+
+// Drizzle's `.values()` wants the schema's TS property name as the key
+// (`tickId`), but call sites here only have the column reference — and
+// the column's `.name` is the DB column name (`tick_id`). Reverse-look
+// the TS name up from the table's columns map (object identity matches
+// because both come from the same pgTable() factory).
+function tsFieldName(table: PgTable, column: AnyPgColumn): string {
+  const cols = getTableColumns(table) as Record<string, AnyPgColumn>
+  for (const [field, col] of Object.entries(cols)) {
+    if (col === column) return field
+  }
+  throw new Error(
+    `setRelations: column "${column.name}" not part of the join table`,
+  )
 }
 
 export async function setRelations<TJoin extends PgTable>(
@@ -41,19 +56,13 @@ export async function setRelations<TJoin extends PgTable>(
   }
 
   if (toInsert.length > 0) {
-    // Build the INSERT with a raw sql template. Drizzle's `.values()`
-    // wants the schema's TS property names (`tickId`), but at this
-    // call-site we only have the column references — and their `.name`
-    // is the DB column name (`tick_id`). Mapping TS-name → DB-name in
-    // userland is brittle; sql template-interpolating the column refs
-    // produces the correct `"tick_id"` identifiers without round-trip.
-    const rows = sql.join(
-      toInsert.map((id) => sql`(${parentId}, ${id})`),
-      sql`, `,
-    )
-    await db.execute(
-      sql`insert into ${spec.table} (${spec.parentColumn}, ${spec.childColumn}) values ${rows}`,
-    )
+    const parentField = tsFieldName(spec.table, spec.parentColumn)
+    const childField = tsFieldName(spec.table, spec.childColumn)
+    const values = toInsert.map((id) => ({
+      [parentField]: parentId,
+      [childField]: id,
+    }))
+    await db.insert(spec.table).values(values as never)
   }
 }
 
