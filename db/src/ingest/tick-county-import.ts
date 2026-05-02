@@ -54,6 +54,19 @@ export async function ingestTickCounty(
   const allCounties = await db.select({ fips: counties.fips }).from(counties)
   const knownFips = new Set(allCounties.map((c) => c.fips))
 
+  // Resolve everything in-memory first so we can batch the writes —
+  // multi-thousand-row CDC files time out a serverless function if we
+  // round-trip per row.
+  type Pending = {
+    tickId: number
+    countyFips: string
+    year: number
+    status: TickStatus
+    source: string | null
+    sourceComments: string | null
+  }
+  const pending: Pending[] = []
+
   for (let i = 0; i < input.rows.length; i++) {
     const r = input.rows[i]
     if (!r) continue
@@ -82,16 +95,22 @@ export async function ingestTickCounty(
       continue
     }
 
+    pending.push({
+      tickId,
+      countyFips: r.countyFips,
+      year: r.year,
+      status: r.status,
+      source: r.source,
+      sourceComments: r.sourceComments,
+    })
+  }
+
+  const CHUNK = 500
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    const chunk = pending.slice(i, i + CHUNK)
     await db
       .insert(tickCounty)
-      .values({
-        tickId,
-        countyFips: r.countyFips,
-        year: r.year,
-        status: r.status,
-        source: r.source,
-        sourceComments: r.sourceComments,
-      })
+      .values(chunk)
       .onConflictDoUpdate({
         target: [tickCounty.tickId, tickCounty.countyFips, tickCounty.year],
         set: {
@@ -101,7 +120,7 @@ export async function ingestTickCounty(
           updatedAt: sql`now()`,
         },
       })
-    summary.applied++
+    summary.applied += chunk.length
   }
 
   return summary

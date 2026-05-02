@@ -40,6 +40,19 @@ export async function ingestCdcCountyYear(
   const allCounties = await db.select({ fips: counties.fips }).from(counties)
   const knownFips = new Set(allCounties.map((c) => c.fips))
 
+  // 3. Resolve every row in-memory first so we can batch the writes.
+  //    A single 3000-row CDC file expands to ~28,000 long rows; one round
+  //    trip per row times out the serverless function on Vercel. Building
+  //    the array up-front and chunking the upserts keeps it under the
+  //    function timeout.
+  type Pending = {
+    countyFips: string
+    diseaseId: number
+    year: number
+    count: number
+  }
+  const pending: Pending[] = []
+
   for (let i = 0; i < input.rows.length; i++) {
     const raw = input.rows[i]
     if (!raw) continue
@@ -75,29 +88,35 @@ export async function ingestCdcCountyYear(
         continue
       }
 
-      // Natural-key unique index makes this idempotent — re-runs bump
-      // count + updated_at instead of inserting duplicate rows.
-      await db
-        .insert(diseaseCountyYear)
-        .values({
-          countyFips: lr.countyFips,
-          diseaseId,
-          year: lr.year,
-          count: lr.count,
-        })
-        .onConflictDoUpdate({
-          target: [
-            diseaseCountyYear.countyFips,
-            diseaseCountyYear.diseaseId,
-            diseaseCountyYear.year,
-          ],
-          set: {
-            count: sql`EXCLUDED.count`,
-            updatedAt: sql`now()`,
-          },
-        })
-      summary.applied++
+      pending.push({
+        countyFips: lr.countyFips,
+        diseaseId,
+        year: lr.year,
+        count: lr.count,
+      })
     }
+  }
+
+  // 4. Batched upsert. Natural-key unique index makes this idempotent —
+  //    re-runs bump count + updated_at instead of inserting duplicates.
+  const CHUNK = 500
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    const chunk = pending.slice(i, i + CHUNK)
+    await db
+      .insert(diseaseCountyYear)
+      .values(chunk)
+      .onConflictDoUpdate({
+        target: [
+          diseaseCountyYear.countyFips,
+          diseaseCountyYear.diseaseId,
+          diseaseCountyYear.year,
+        ],
+        set: {
+          count: sql`EXCLUDED.count`,
+          updatedAt: sql`now()`,
+        },
+      })
+    summary.applied += chunk.length
   }
 
   return summary

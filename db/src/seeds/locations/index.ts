@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseFipsFile } from './parse-fips.js'
 import { USPS_BY_FIPS } from './usps-codes.js'
+import { EXTRA_COUNTIES } from './extra-counties.js'
 
 export interface SeedState {
   fips: string // '25'
@@ -53,6 +54,17 @@ export function loadLocations(): { states: SeedState[]; counties: SeedCounty[] }
       countyName: c.countyName,
       slug: c.slug,
     }))
+
+  // Patch in counties created/renamed after the FCC snapshot we ship.
+  // De-dupe by FIPS — the file is the source of truth for anything it
+  // does cover.
+  const seenFips = new Set(seedCounties.map((c) => c.fips))
+  for (const extra of EXTRA_COUNTIES) {
+    if (seenFips.has(extra.fips)) continue
+    if (!stateFipsSet.has(extra.stateFips)) continue
+    seedCounties.push({ ...extra })
+    seenFips.add(extra.fips)
+  }
 
   cached = { states: seedStates, counties: seedCounties }
   return cached

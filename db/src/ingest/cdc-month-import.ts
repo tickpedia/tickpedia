@@ -32,6 +32,9 @@ export async function ingestDiseaseMonth(
     for (const alias of d.aliases) slugToId.set(alias, d.id)
   }
 
+  type Pending = { year: number; month: number; diseaseId: number; count: number }
+  const pending: Pending[] = []
+
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
     if (!r) continue
@@ -55,14 +58,15 @@ export async function ingestDiseaseMonth(
       continue
     }
 
+    pending.push({ year: r.year, month: r.month, diseaseId, count: r.count })
+  }
+
+  const CHUNK = 500
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    const chunk = pending.slice(i, i + CHUNK)
     await db
       .insert(diseaseMonth)
-      .values({
-        year: r.year,
-        month: r.month,
-        diseaseId,
-        count: r.count,
-      })
+      .values(chunk)
       .onConflictDoUpdate({
         target: [diseaseMonth.year, diseaseMonth.month, diseaseMonth.diseaseId],
         set: {
@@ -70,7 +74,7 @@ export async function ingestDiseaseMonth(
           updatedAt: sql`now()`,
         },
       })
-    summary.applied++
+    summary.applied += chunk.length
   }
 
   return summary
