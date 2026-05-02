@@ -4,7 +4,14 @@ import { resolve } from 'node:path'
 
 // Tickpedia keeps a single .env at the repo root so admin / web / db /
 // scripts share one source of truth. Point Next at it.
-loadEnvConfig(resolve(import.meta.dirname, '..', '..'))
+//
+// `forceReload: true` matters here — Next runs its own
+// `loadEnvConfig(<project-root>)` (apps/admin) before this file
+// loads. That populates an internal cache; without forceReload, our
+// call against the repo root would return cached emptiness and
+// process.env.DATABASE_URL would stay undefined at server-component
+// runtime.
+loadEnvConfig(resolve(import.meta.dirname, '..', '..'), undefined, undefined, true)
 
 const config: NextConfig = {
   reactStrictMode: true,
