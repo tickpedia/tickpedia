@@ -8,12 +8,15 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
     "install-browsers": "playwright install --with-deps chromium",
+    "smoke:semilayer": "tsx --env-file=../../.env src/semilayer-smoke.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",
+    "@semilayer/client": "^1.9.1",
     "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }
 }

@@ -111,7 +111,7 @@ A manual end-to-end smoke against the three real CDC files lives at
 hits the database. Run it from the db package:
 ```bash
 cd db
-DATABASE_URL=postgresql://tickpedia:tickpedia@localhost:5432/tickpedia \
+DATABASE_URL=postgresql://tickpedia:tickpedia@localhost:15432/tickpedia \
   pnpm exec tsx src/__tests__/xlsx-smoke.ts
 ```
 

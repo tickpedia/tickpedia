@@ -5,7 +5,9 @@ GitHub Pages (apps).
 
 ## What's here
 
-- `docker-compose.yml` — Postgres 16 on port 5432.
+- `docker-compose.yml` — Postgres 16 on host port **15432** (container
+  internal stays 5432). The bumped host port avoids fighting a system
+  Postgres install or another project on the default.
 
 ## Quickstart
 
@@ -18,7 +20,7 @@ pnpm db:logs    # docker compose -f docker/docker-compose.yml logs -f postgres
 Then point `.env` at it:
 
 ```
-DATABASE_URL=postgresql://tickpedia:tickpedia@localhost:5432/tickpedia
+DATABASE_URL=postgresql://tickpedia:tickpedia@localhost:15432/tickpedia
 ```
 
 Apply migrations and seed:

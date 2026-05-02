@@ -31,7 +31,7 @@ pnpm e2e                            # Playwright (hermetic, builds its own serve
 ## What `db:setup:local` does
 
 1. `docker compose -f docker/docker-compose.yml up -d --wait` — boots
-   Postgres 16 on `localhost:5432` and waits until the healthcheck
+   Postgres 16 on `localhost:15432` and waits until the healthcheck
    passes. No race with the next step.
 2. Applies Drizzle migrations from `db/migrations/` (whatever the
    committed schema requires).
@@ -113,11 +113,11 @@ pnpm semilayer:generate
 | `Cannot find module '@semilayer/client'` from `generated/` | new clone, deps not installed | `pnpm install` from repo root |
 | Clerk `Missing publishableKey` at build | `.env` has placeholder | put real `pk_test_*` from Clerk dashboard, or skip admin |
 | Search box returns nothing in dev | lenses haven't ingested | `pnpm exec semilayer status` — make sure each lens shows `ready` with vectors |
-| Port 5173/3001/5432 already in use | a prior process didn't shut down | `lsof -i :<port>` and kill it |
+| Port 5173/3001/15432 already in use | a prior process didn't shut down | `lsof -i :<port>` and kill it |
 
 ## Local vs remote
 
-- **Local** (`pnpm db:setup:local`) — Docker Postgres on `localhost:5432`. No
+- **Local** (`pnpm db:setup:local`) — Docker Postgres on `localhost:15432`. No
   network. Fast. Pgvector is **not** installed in this image, so any
   lens-side flows that hit the SemiLayer service won't return real
   embeddings against local data — that's expected.
