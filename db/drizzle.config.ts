@@ -3,9 +3,11 @@ import { config as loadDotenv } from 'dotenv'
 import { resolve } from 'node:path'
 
 // drizzle-kit doesn't support Node's --env-file flag, so load the root
-// .env explicitly. Local overrides (db:setup:local) set DATABASE_URL
-// before invocation; that wins because we override: false.
-loadDotenv({ path: resolve(import.meta.dirname, '..', '.env'), override: false })
+// .env explicitly. drizzle-kit transpiles this file as CJS, so
+// `import.meta.dirname` is empty — anchor on `process.cwd()` instead
+// (drizzle-kit runs from the @tickpedia/db package dir, so `..` is the
+// repo root).
+loadDotenv({ path: resolve(process.cwd(), '..', '.env'), override: false })
 
 export default defineConfig({
   schema: './src/schema.ts',

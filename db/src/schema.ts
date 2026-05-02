@@ -12,13 +12,21 @@
 //   /us/<state-slug>/<county-slug>  e.g. /us/ma/essex
 //
 // Surveillance counts (CDC) live in disease_county_year + disease_month.
-// Editorial tick prevalence lives in tick_state.
+// Tick presence by county lives in tick_county (CDC ArboNET-style).
+// Editorial tick prevalence by state lives in tick_state.
+//
+// Every table that downstream consumers (SemiLayer change tracking, the
+// admin "what's new" view) need to slice by recency carries a `created_at`
+// and `updated_at` timestamp. Bulk ingest pipelines bump `updated_at`
+// on conflict so re-imports surface as fresh rows even when values are
+// stable.
 
 import { sql } from 'drizzle-orm'
 import { pgTable, serial, text, integer, timestamp, pgEnum, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const dangerLevel = pgEnum('danger_level', ['low', 'medium', 'high'])
 export const prevalence = pgEnum('prevalence', ['low', 'medium', 'high'])
+export const tickStatus = pgEnum('tick_status', ['established', 'reported', 'no_records'])
 
 // ─── Ticks ────────────────────────────────────────────────────────────
 
@@ -36,9 +44,11 @@ export const ticks = pgTable(
       .notNull()
       .default(sql`ARRAY[]::text[]`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     slugIdx: uniqueIndex('ticks_slug_idx').on(t.slug),
+    scientificIdx: uniqueIndex('ticks_scientific_idx').on(t.scientificName),
   }),
 )
 
@@ -94,9 +104,41 @@ export const tickState = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::integer[]`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     naturalKey: uniqueIndex('tick_state_natural_idx').on(t.tickId, t.stateFips),
+  }),
+)
+
+// ─── Tick × County (ArboNET-style surveillance presence) ──────────────
+//
+// Each row asserts: as of `year`, in this county, this tick was at
+// status (established / reported / no_records). `source` and
+// `sourceComments` carry the citation as it appeared in the input file.
+//
+// Natural key (tick_id, county_fips, year) is unique — re-importing the
+// same year overwrites; importing a new year inserts.
+export const tickCounty = pgTable(
+  'tick_county',
+  {
+    id: serial('id').primaryKey(),
+    tickId: integer('tick_id')
+      .notNull()
+      .references(() => ticks.id, { onDelete: 'cascade' }),
+    countyFips: text('county_fips')
+      .notNull()
+      .references(() => counties.fips, { onDelete: 'cascade' }),
+    year: integer('year').notNull(),
+    status: tickStatus('status').notNull().default('no_records'),
+    source: text('source'),
+    sourceComments: text('source_comments'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('tick_county_natural_idx').on(t.tickId, t.countyFips, t.year),
   }),
 )
 
@@ -110,6 +152,8 @@ export const removalTechniques = pgTable(
     title: text('title').notNull(),
     steps: text('steps').notNull(),
     sourceUrl: text('source_url'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     slugIdx: uniqueIndex('removal_techniques_slug_idx').on(t.slug),
@@ -122,6 +166,7 @@ export const wildFacts = pgTable('wild_facts', {
   citationUrl: text('citation_url'),
   tickId: integer('tick_id').references(() => ticks.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 // ─── Scientific surveillance data ─────────────────────────────────────
@@ -149,6 +194,7 @@ export const diseases = pgTable(
       .notNull()
       .default(sql`ARRAY[]::text[]`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     slugIdx: uniqueIndex('diseases_slug_idx').on(t.slug),
@@ -167,6 +213,8 @@ export const diseaseCountyYear = pgTable(
       .references(() => diseases.id, { onDelete: 'cascade' }),
     year: integer('year').notNull(),
     count: integer('count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     naturalKey: uniqueIndex('disease_county_year_natural_idx').on(
@@ -187,6 +235,8 @@ export const diseaseMonth = pgTable(
       .notNull()
       .references(() => diseases.id, { onDelete: 'cascade' }),
     count: integer('count').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     naturalKey: uniqueIndex('disease_month_natural_idx').on(t.year, t.month, t.diseaseId),

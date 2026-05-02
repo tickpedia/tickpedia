@@ -47,10 +47,14 @@ export default defineConfig({
         heroPhotoUrl: { type: 'text', from: 'hero_photo_url' },
         dangerLevel: { type: 'text', from: 'danger_level' },
         diseases: { type: 'text', array: true, searchable: true },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
       },
+      changeTrackingColumn: 'updatedAt',
       relations: {
         wildFacts: { lens: 'wildFacts', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 10 },
         states: { lens: 'tickState', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 100 },
+        counties: { lens: 'tickCounty', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 5000 },
       },
       feeds: {
         relatedTo: {
@@ -81,8 +85,9 @@ export default defineConfig({
         citationUrl: { type: 'text', from: 'citation_url' },
         tickId: { type: 'number', from: 'tick_id' },
         createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
       },
-      changeTrackingColumn: 'createdAt',
+      changeTrackingColumn: 'updatedAt',
       relations: {
         tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
       },
@@ -119,7 +124,10 @@ export default defineConfig({
         title: { type: 'text', searchable: { weight: 2 } },
         steps: { type: 'text', searchable: true },
         sourceUrl: { type: 'text', from: 'source_url' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
       },
+      changeTrackingColumn: 'updatedAt',
       grants: {
         search: 'public',
         query: 'public',
@@ -168,11 +176,14 @@ export default defineConfig({
     diseases: {
       source: 'main',
       table: 'diseases',
+      changeTrackingColumn: 'updatedAt',
       fields: {
         id: { type: 'number', primaryKey: true },
         slug: { type: 'text' },
         displayName: { type: 'text', from: 'display_name' },
         aliases: { type: 'text', array: true },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
       },
       relations: {
         countyStats: {
@@ -195,12 +206,15 @@ export default defineConfig({
     tickState: {
       source: 'main',
       table: 'tick_state',
+      changeTrackingColumn: 'updatedAt',
       fields: {
         id: { type: 'number', primaryKey: true },
         tickId: { type: 'number', from: 'tick_id' },
         stateFips: { type: 'text', from: 'state_fips' },
         prevalence: { type: 'text' },
         peakMonths: { type: 'number', array: true, from: 'peak_months' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
       },
       relations: {
         tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
@@ -209,15 +223,40 @@ export default defineConfig({
       grants: { query: 'public' },
     },
 
+    tickCounty: {
+      source: 'main',
+      table: 'tick_county',
+      changeTrackingColumn: 'updatedAt',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        tickId: { type: 'number', from: 'tick_id' },
+        countyFips: { type: 'text', from: 'county_fips' },
+        year: { type: 'number' },
+        status: { type: 'text' },
+        source: { type: 'text' },
+        sourceComments: { type: 'text', from: 'source_comments' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
+        county: { lens: 'counties', kind: 'belongsTo', on: { countyFips: 'fips' } },
+      },
+      grants: { query: 'public' },
+    },
+
     diseaseCountyYear: {
       source: 'main',
       table: 'disease_county_year',
+      changeTrackingColumn: 'updatedAt',
       fields: {
         id: { type: 'number', primaryKey: true },
         countyFips: { type: 'text', from: 'county_fips' },
         diseaseId: { type: 'number', from: 'disease_id' },
         year: { type: 'number' },
         count: { type: 'number' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
       },
       relations: {
         county: { lens: 'counties', kind: 'belongsTo', on: { countyFips: 'fips' } },
@@ -229,12 +268,15 @@ export default defineConfig({
     diseaseMonth: {
       source: 'main',
       table: 'disease_month',
+      changeTrackingColumn: 'updatedAt',
       fields: {
         id: { type: 'number', primaryKey: true },
         year: { type: 'number' },
         month: { type: 'number' },
         diseaseId: { type: 'number', from: 'disease_id' },
         count: { type: 'number' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
       },
       relations: {
         disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },

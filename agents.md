@@ -49,6 +49,7 @@ just do them. Each skill is a self-contained markdown file under `skills/`.
 | [add-a-lens](./skills/add-a-lens.md) | Expose a new table to the public site through a SemiLayer lens |
 | [add-a-table](./skills/add-a-table.md) | Drizzle schema → migration → seed → tests |
 | [ingest-cdc-data](./skills/ingest-cdc-data.md) | Pull CDC FIPS-keyed surveillance data; wide→long; canonical disease slugs |
+| [import-xlsx](./skills/import-xlsx.md) | The admin xlsx import path: 3 modes, idempotency contract, where to extend |
 | [run-e2e](./skills/run-e2e.md) | The hermetic e2e flow + how to debug failures |
 
 If a workflow shows up twice, write a skill for it. The next agent will

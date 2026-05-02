@@ -2,7 +2,7 @@ import { SignIn } from '@clerk/nextjs'
 
 export default function Page() {
   return (
-    <main>
+    <main className="bare">
       <SignIn />
     </main>
   )

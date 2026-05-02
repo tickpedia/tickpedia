@@ -75,4 +75,9 @@ export const CANONICAL_DISEASES: CanonicalDisease[] = [
     displayName: 'Powassan virus disease',
     aliases: ['powassan', 'powassan-virus', 'powassan-virus-disease', 'pow'],
   },
+  {
+    slug: 'alpha-gal-syndrome',
+    displayName: 'Alpha-gal syndrome',
+    aliases: ['alpha-gal-syndrome', 'alpha-gal', 'ags', 'mammalian-meat-allergy'],
+  },
 ]

@@ -4,6 +4,7 @@ import {
   states,
   counties,
   tickState,
+  tickCounty,
   wildFacts,
   removalTechniques,
   diseases,
@@ -17,6 +18,7 @@ describe('schema', () => {
     expect(states).toBeDefined()
     expect(counties).toBeDefined()
     expect(tickState).toBeDefined()
+    expect(tickCounty).toBeDefined()
     expect(wildFacts).toBeDefined()
     expect(removalTechniques).toBeDefined()
     expect(diseases).toBeDefined()

@@ -5,17 +5,31 @@
 //   1. states     ← parsed from db/src/seeds/data/fips.txt
 //   2. counties   ← same source; FK on states.fips
 //   3. diseases   ← canonical CDC list
-//   4. ticks + tick_state + wild_facts ← editorial sample
+//   4. ticks      ← canonical species list
+//   5. removal_techniques ← editorial canonical list
+//   6. tick_state ← editorial sample (Massachusetts, scapularis)
+//   7. wild_facts ← editorial sample fact
 //
 // Idempotent: every insert uses ON CONFLICT DO NOTHING / DO UPDATE so
 // re-running the seed won't error. Surveillance counts (disease_county_year
-// / disease_month) are not seeded here — those flow in via the CDC ingest
-// pipeline.
+// / disease_month / tick_county) are not seeded here — those flow in via
+// the admin panel xlsx import or scheduled scrape jobs.
 
+import { sql } from 'drizzle-orm'
 import { connect } from './connect.js'
-import { ticks, tickState, wildFacts, states, counties, diseases } from './schema.js'
+import {
+  ticks,
+  tickState,
+  wildFacts,
+  states,
+  counties,
+  diseases,
+  removalTechniques,
+} from './schema.js'
 import { loadLocations } from './seeds/locations/index.js'
 import { CANONICAL_DISEASES } from './seeds/diseases.js'
+import { CANONICAL_TICKS } from './seeds/ticks.js'
+import { CANONICAL_REMOVAL_TECHNIQUES } from './seeds/removal-techniques.js'
 
 const url = process.env.DATABASE_URL
 if (!url) {
@@ -51,21 +65,61 @@ await db
       aliases: d.aliases,
     })),
   )
-  .onConflictDoNothing({ target: diseases.slug })
+  .onConflictDoUpdate({
+    target: diseases.slug,
+    set: {
+      displayName: sql`EXCLUDED.display_name`,
+      aliases: sql`EXCLUDED.aliases`,
+      updatedAt: sql`now()`,
+    },
+  })
 console.log(`diseases: ${CANONICAL_DISEASES.length} rows`)
 
-// ─── 3. Editorial sample (ticks + state-level prevalence + a fact) ────
-const [deer] = await db
+// ─── 3. Canonical ticks ───────────────────────────────────────────────
+await db
   .insert(ticks)
-  .values({
-    slug: 'ixodes-scapularis',
-    commonName: 'Black-legged tick',
-    scientificName: 'Ixodes scapularis',
-    dangerLevel: 'high',
-    diseases: ['Lyme disease', 'Babesiosis', 'Anaplasmosis'],
+  .values(
+    CANONICAL_TICKS.map((t) => ({
+      slug: t.slug,
+      commonName: t.commonName,
+      scientificName: t.scientificName,
+      dangerLevel: t.dangerLevel,
+      diseases: t.diseases,
+    })),
+  )
+  .onConflictDoUpdate({
+    target: ticks.slug,
+    set: {
+      commonName: sql`EXCLUDED.common_name`,
+      scientificName: sql`EXCLUDED.scientific_name`,
+      dangerLevel: sql`EXCLUDED.danger_level`,
+      diseases: sql`EXCLUDED.diseases`,
+      updatedAt: sql`now()`,
+    },
   })
-  .onConflictDoNothing({ target: ticks.slug })
-  .returning()
+console.log(`ticks: ${CANONICAL_TICKS.length} rows`)
+
+// ─── 4. Removal techniques ────────────────────────────────────────────
+await db
+  .insert(removalTechniques)
+  .values(CANONICAL_REMOVAL_TECHNIQUES)
+  .onConflictDoUpdate({
+    target: removalTechniques.slug,
+    set: {
+      title: sql`EXCLUDED.title`,
+      steps: sql`EXCLUDED.steps`,
+      sourceUrl: sql`EXCLUDED.source_url`,
+      updatedAt: sql`now()`,
+    },
+  })
+console.log(`removal_techniques: ${CANONICAL_REMOVAL_TECHNIQUES.length} rows`)
+
+// ─── 5. Editorial sample (state-level prevalence + a fact) ────────────
+const [deer] = await db
+  .select({ id: ticks.id })
+  .from(ticks)
+  .where(sql`${ticks.slug} = 'ixodes-scapularis'`)
+  .limit(1)
 
 if (deer) {
   await db
@@ -78,15 +132,21 @@ if (deer) {
     })
     .onConflictDoNothing()
 
-  await db
-    .insert(wildFacts)
-    .values({
-      body:
-        'A single nymph the size of a poppy seed can deliver Borrelia burgdorferi ' +
-        'in under 36 hours of attachment.',
-      tickId: deer.id,
-    })
-    .onConflictDoNothing()
+  // Wild fact — guard with a body-text lookup so re-runs don't insert
+  // duplicate copies of the seed fact.
+  const seedFact =
+    'A single nymph the size of a poppy seed can deliver Borrelia burgdorferi ' +
+    'in under 36 hours of attachment.'
+
+  const existing = await db
+    .select({ id: wildFacts.id })
+    .from(wildFacts)
+    .where(sql`${wildFacts.body} = ${seedFact}`)
+    .limit(1)
+
+  if (existing.length === 0) {
+    await db.insert(wildFacts).values({ body: seedFact, tickId: deer.id })
+  }
 }
 
 console.log('seeded')

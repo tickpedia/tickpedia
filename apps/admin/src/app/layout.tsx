@@ -11,10 +11,22 @@ export const metadata = {
 // Clerk credentials during build.
 export const dynamic = 'force-dynamic'
 
+// Apply the persisted theme before React mounts to avoid a flash of the
+// wrong palette. Runs once before hydration.
+const themeBootstrap = `
+try {
+  const t = localStorage.getItem('tickpedia-admin-theme');
+  if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+} catch {}
+`
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider>
       <html lang="en">
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+        </head>
         <body>{children}</body>
       </html>
     </ClerkProvider>
