@@ -283,6 +283,7 @@ export default defineConfig({
         id: { type: 'number', primaryKey: true },
         slug: { type: 'text', searchable: true },
         displayName: { type: 'text', from: 'display_name', searchable: { weight: 3 } },
+        oneLiner: { type: 'text', from: 'one_liner', searchable: { weight: 2 } },
         aliases: { type: 'text', array: true, searchable: { weight: 2 } },
         createdAt: { type: 'date', from: 'created_at' },
         updatedAt: { type: 'date', from: 'updated_at' },

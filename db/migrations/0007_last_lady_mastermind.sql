@@ -1,0 +1,1 @@
+ALTER TABLE "diseases" ADD COLUMN "one_liner" text;

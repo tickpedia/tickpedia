@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import { readIdList, setRelations } from '../../../../lib/relations'
+import { normalizeOneLiner } from '../../../../lib/json-import'
 
 export interface SaveResult {
   ok: boolean
@@ -30,20 +31,23 @@ export async function upsertDisease(form: FormData): Promise<SaveResult> {
     .map((a) => slugify(a))
     .filter(Boolean)
   if (!aliases.includes(slug)) aliases.unshift(slug)
+  const oneLinerResult = normalizeOneLiner(form.get('oneLiner'))
 
   if (!displayName) return { ok: false, error: 'Display name required.' }
   if (!slug) return { ok: false, error: 'Slug could not be derived.' }
+  if ('error' in oneLinerResult) return { ok: false, error: oneLinerResult.error }
 
   const tickIds = readIdList(form, 'tickIds')
 
   const db = connect(process.env.DATABASE_URL)
   await db
     .insert(schema.diseases)
-    .values({ slug, displayName, aliases })
+    .values({ slug, displayName, oneLiner: oneLinerResult.value, aliases })
     .onConflictDoUpdate({
       target: schema.diseases.slug,
       set: {
         displayName: sql`EXCLUDED.display_name`,
+        oneLiner: sql`EXCLUDED.one_liner`,
         aliases: sql`EXCLUDED.aliases`,
         updatedAt: sql`now()`,
       },

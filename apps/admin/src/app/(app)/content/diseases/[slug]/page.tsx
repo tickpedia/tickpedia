@@ -33,6 +33,7 @@ export default async function EditDiseasePage({
   const initial: DiseaseFormInitial = {
     displayName: row.displayName,
     slug: row.slug,
+    oneLiner: row.oneLiner ?? '',
     aliases: row.aliases,
     tickIds: tickLinks.map((t) => t.tickId),
   }

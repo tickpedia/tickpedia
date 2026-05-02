@@ -12,13 +12,19 @@ import { sql, eq } from 'drizzle-orm'
 import { connect, schema } from '@tickpedia/db'
 import { notifySemilayer } from '../../../../../lib/semilayer-notify'
 import { setRelations } from '../../../../../lib/relations'
-import { emptySummary, readJsonInput, type ImportSummary } from '../../../../../lib/json-import'
+import {
+  emptySummary,
+  normalizeOneLiner,
+  readJsonInput,
+  type ImportSummary,
+} from '../../../../../lib/json-import'
 import JsonImportForm from '../../../../components/JsonImportForm'
 
 const SCHEMA_HINT = `[
   {
     "slug": "lyme-disease",
     "displayName": "Lyme disease",
+    "oneLiner": "Lyme disease is a bacterial infection (Borrelia burgdorferi) spread by black-legged ticks; the most common tick-borne illness in the US.",
     "aliases": ["lyme", "lyme-disease"],
     "ticks": ["ixodes-scapularis"]
   }
@@ -66,15 +72,21 @@ async function importAction(
       ? rec.aliases.map((a) => slugify(String(a))).filter(Boolean)
       : []
     const aliases = aliasesIn.includes(slug) ? aliasesIn : [slug, ...aliasesIn]
+    const oneLinerResult = normalizeOneLiner(rec.oneLiner)
+    if ('error' in oneLinerResult) {
+      summary.errors.push({ row: i, reason: oneLinerResult.error })
+      continue
+    }
 
     try {
       await db
         .insert(schema.diseases)
-        .values({ slug, displayName, aliases })
+        .values({ slug, displayName, oneLiner: oneLinerResult.value, aliases })
         .onConflictDoUpdate({
           target: schema.diseases.slug,
           set: {
             displayName: sql`EXCLUDED.display_name`,
+            oneLiner: sql`EXCLUDED.one_liner`,
             aliases: sql`EXCLUDED.aliases`,
             updatedAt: sql`now()`,
           },

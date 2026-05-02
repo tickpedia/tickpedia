@@ -315,6 +315,11 @@ export const diseases = pgTable(
     id: serial('id').primaryKey(),
     slug: text('slug').notNull(),
     displayName: text('display_name').notNull(),
+    // Same SEO contract as ticks + removalTechniques: ≤155 chars by
+    // editorial guideline, 200 hard cap at the import boundary.
+    // Nullable so existing rows stay valid until the JSON re-import
+    // populates.
+    oneLiner: text('one_liner'),
     aliases: text('aliases')
       .array()
       .notNull()

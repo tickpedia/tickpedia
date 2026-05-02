@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useEffect } from 'react'
 import Pillbox, { type PillboxOption } from '../../../components/Pillbox'
+import OneLinerField from '../../../components/OneLinerField'
 
 type Result = { ok: boolean; error?: string }
 const init: Result = { ok: false }
@@ -9,11 +10,18 @@ const init: Result = { ok: false }
 export interface DiseaseFormInitial {
   displayName: string
   slug: string
+  oneLiner: string
   aliases: string[]
   tickIds: number[]
 }
 
-const EMPTY: DiseaseFormInitial = { displayName: '', slug: '', aliases: [], tickIds: [] }
+const EMPTY: DiseaseFormInitial = {
+  displayName: '',
+  slug: '',
+  oneLiner: '',
+  aliases: [],
+  tickIds: [],
+}
 
 export default function DiseaseForm({
   action,
@@ -55,6 +63,7 @@ export default function DiseaseForm({
           placeholder="auto from display name"
         />
       </div>
+      <OneLinerField initial={start.oneLiner} />
       <div className="field">
         <label htmlFor="aliases">Aliases (comma or newline separated)</label>
         <textarea
