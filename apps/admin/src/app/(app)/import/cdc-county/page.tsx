@@ -59,6 +59,70 @@ export default async function Page() {
         in place.
       </p>
 
+      <section className="card">
+        <h3>Expected shape</h3>
+        <p style={{ marginTop: 0 }}>
+          One row per county. The first three columns describe the county; every other column
+          is treated as a disease.
+        </p>
+        <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          <thead>
+            <tr>
+              <th align="left">Column</th>
+              <th align="left">What goes in it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>State</code></td>
+              <td>Full state name, e.g. <code>Alabama</code>. Display only.</td>
+            </tr>
+            <tr>
+              <td><code>County</code></td>
+              <td>County name, e.g. <code>Autauga</code>. Display only.</td>
+            </tr>
+            <tr>
+              <td><code>FIPS</code></td>
+              <td>
+                5-digit FIPS, e.g. <code>01001</code>. Leading zeros required — if your file
+                has them as numbers, the parser pads back to 5.
+              </td>
+            </tr>
+            <tr>
+              <td><em>any other column</em></td>
+              <td>
+                Treated as a disease. The header must match a disease in{' '}
+                <code>seeds/diseases.ts</code> by slug, alias, or display name (case + spacing
+                insensitive). Cell value is an integer count. CDC suppressions{' '}
+                <code>&lt;5</code> and <code>*</code> are dropped (not stored as 0).
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          <strong>Year</strong>: one value applies to the whole sheet — pick it in the form.
+          <br />
+          <strong>Idempotent on</strong>{' '}
+          <code>(county_fips, disease_id, year)</code> — re-import freely.
+          <br />
+          <strong>Example file</strong>: <code>AllTBD2022_Public.xlsx</code> from{' '}
+          <a
+            href="https://www.cdc.gov/ticks/data-research/facts-stats/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            cdc.gov/ticks
+          </a>
+          .
+        </p>
+        <p className="muted" style={{ fontSize: '0.85rem', marginBottom: 0 }}>
+          Errors usually mean an unknown disease column (add to{' '}
+          <code>seeds/diseases.ts</code> + reseed) or a county FIPS the seed doesn&apos;t cover
+          (add to <code>seeds/locations/extra-counties.ts</code>). Bogus CDC FIPS (e.g.{' '}
+          <code>11031</code>) are silently skipped.
+        </p>
+      </section>
+
       <ImportForm action={importAction} />
 
       {recent.length === 0 ? null : (

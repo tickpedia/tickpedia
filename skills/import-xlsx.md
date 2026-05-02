@@ -7,6 +7,13 @@ The admin panel at `admin.tickpedia.com` has three import modes; this
 skill walks through how to pick one, how to extend them, and what to do
 when an xlsx doesn't fit any of them.
 
+> **Operator note:** at scale (5,000+ paths) you live and die by three
+> things — batched upserts so the function doesn't time out, idempotent
+> natural keys so re-runs are free, and tight error feedback so a bad
+> source file doesn't cost you a day of debugging. The "performance &
+> reliability" and "common gotchas" sections below are where most of
+> that knowledge lives.
+
 ## TL;DR — the happy path
 
 1. Sign in to the admin panel as an allowlisted user.
@@ -114,6 +121,72 @@ cd db
 DATABASE_URL=postgresql://tickpedia:tickpedia@localhost:15432/tickpedia \
   pnpm exec tsx src/__tests__/xlsx-smoke.ts
 ```
+
+## Performance & reliability (read before you ship a new ingest)
+
+The admin runs on Vercel — serverless functions cap at **10s on Hobby /
+60s on Pro**. A naive ingest that does one round-trip per row will hit
+that ceiling on any meaningful CDC file:
+
+| File | Rows in | Long rows out | Per-row latency cost |
+|---|---|---|---|
+| `AllTBD2022_Public.xlsx` | ~3,144 | ~28,000 (county × disease) | 28k × 5–10ms ≈ 2–5min ❌ |
+| Single-tick presence | ~3,000 | ~3,000 | 3k × 5–10ms ≈ 15–30s ❌ |
+| Multi-tick presence | ~3,000 | ~6,000 | 6k × 5–10ms ≈ 30–60s ❌ |
+
+So:
+
+- **Always batch.** Build the full row array in memory, then upsert in
+  chunks of 500 with `db.insert(table).values(chunk).onConflictDoUpdate`.
+  At chunk=500 a 28k-row file collapses to ~56 round-trips. The current
+  three ingests (`db/src/ingest/{cdc-county,tick-county,cdc-month}-import.ts`)
+  follow this pattern — copy them.
+- **Don't wrap the chunked upserts in a `db.transaction(callback)`** —
+  the Neon HTTP driver doesn't support callback transactions. Each chunk
+  is its own statement; ON CONFLICT keeps the result consistent across
+  partial failures (you'll just re-run on error).
+- **Pre-load lookup tables once.** Resolve `slug → id` (diseases, ticks)
+  and the FIPS allowlist before the row loop, not inside it. Each file
+  touches at most a few thousand rows; loading the ~20-row diseases
+  table once saves thousands of round-trips.
+- **One error per row, not per cell.** Wide-format files multiply errors
+  by the number of disease columns if you check inside the inner loop.
+  Move per-row gates (unknown FIPS, malformed FIPS) before the disease
+  loop so a bad row produces a single error, not 8.
+- **If the import hangs at &quot;Importing&quot;**, the function timed out — the
+  client side never sees the response close. Check Vercel logs; the fix
+  is almost always batching or moving work to a background job.
+
+## Common gotchas
+
+- **Stale FIPS data**: the FCC `db/src/seeds/data/fips.txt` we ship is
+  pre-2001 and missing post-2000 boundary changes. Counties added since
+  (Broomfield CO `08014`, Miami-Dade FL `12086` rename, Connecticut
+  planning regions, several AK boroughs) live in
+  `db/src/seeds/locations/extra-counties.ts` as a deliberately tiny
+  override list the loader merges in. When a real CDC file flags a
+  county FIPS as unknown, **first check this file**; if it's a real
+  county that's just not there, add a row and reseed.
+- **Bogus CDC FIPS**: CDC&apos;s tick-borne disease tables sometimes
+  ship rows with FIPS codes that don&apos;t exist in any FIPS register
+  (e.g. `11031` &quot;District of Columbia / Montgomery&quot; — DC is
+  `11001`, Montgomery County MD is `24031`). These are silently skipped
+  via `KNOWN_BOGUS_FIPS` in `cdc-county-import.ts`. Add new ones there
+  with a comment naming the source file and what we believe the upstream
+  error is, rather than letting them spam the error list every run.
+- **Disease aliases**: a column header like `Spotted fever rickettsiosis`
+  needs to slugify to a disease slug or alias. If the import reports
+  &quot;Unknown disease&quot;, check `db/src/seeds/diseases.ts` and add
+  the header (lowercased, slugified) to that disease&apos;s `aliases`
+  list — usually a one-line change. Don&apos;t create a duplicate disease.
+- **Banner rows**: CDC&apos;s 2025 Ixodes file has a one-line banner
+  before the actual header. The tick-county form has a &quot;header row
+  index&quot; field — `1` skips one banner line. `parseXlsxAtRow` handles
+  this in the parser.
+- **CSV blob mode**: every xlsx import accepts a pasted CSV via the
+  &quot;…or paste CSV&quot; textarea. Same parser path
+  (`apps/admin/src/lib/xlsx.ts → parseSpreadsheetInput`), same shape
+  rules. Useful for ad-hoc one-row corrections.
 
 ## Things to not do
 

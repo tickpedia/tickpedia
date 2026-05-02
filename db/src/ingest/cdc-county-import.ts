@@ -19,6 +19,18 @@ export interface CdcCountyImportInput {
   year: number
 }
 
+// Confirmed-garbage FIPS values that CDC publishes in their TBD files —
+// we skip them silently rather than spamming the import summary every
+// run. Each entry should have a comment naming the bad cell and what we
+// believe the source error is.
+const KNOWN_BOGUS_FIPS = new Set<string>([
+  // Appears as "District of Columbia / Montgomery" in AllTBD*. Real DC
+  // is 11001 and Montgomery County (MD) is 24031 — the 11031 cell is a
+  // misjoined state(11) + county-suffix(031) and references no real
+  // place. Reported upstream; until they fix it, ignore.
+  '11031',
+])
+
 export async function ingestCdcCountyYear(
   db: Db,
   input: CdcCountyImportInput,
@@ -68,16 +80,22 @@ export async function ingestCdcCountyYear(
       continue
     }
 
-    for (const lr of longRows) {
-      if (!knownFips.has(lr.countyFips)) {
-        summary.errors.push({
-          row: i + 1,
-          reason: `Unknown county FIPS ${lr.countyFips} (${lr.stateName} / ${lr.countyName})`,
-          raw,
-        })
-        continue
-      }
+    // Per-row gates (cheap to check once, costly to repeat per disease).
+    const fipsForRow = longRows[0]?.countyFips ?? null
+    if (fipsForRow && KNOWN_BOGUS_FIPS.has(fipsForRow)) {
+      summary.skipped++
+      continue
+    }
+    if (fipsForRow && !knownFips.has(fipsForRow)) {
+      summary.errors.push({
+        row: i + 1,
+        reason: `Unknown county FIPS ${fipsForRow} (${longRows[0]?.stateName ?? ''} / ${longRows[0]?.countyName ?? ''})`,
+        raw,
+      })
+      continue
+    }
 
+    for (const lr of longRows) {
       const diseaseId = slugToId.get(lr.diseaseSlug)
       if (!diseaseId) {
         summary.errors.push({

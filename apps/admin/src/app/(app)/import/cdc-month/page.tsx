@@ -80,6 +80,80 @@ export default function Page() {
         per disease). Idempotent on (year, month, disease) — re-importing the same period
         updates counts in place.
       </p>
+
+      <section className="card">
+        <h3>Expected shape — long format</h3>
+        <p style={{ marginTop: 0 }}>One row per (year, month, disease).</p>
+        <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          <thead>
+            <tr>
+              <th align="left">Column</th>
+              <th align="left">What goes in it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Year</code></td>
+              <td>4-digit year.</td>
+            </tr>
+            <tr>
+              <td><code>Month</code></td>
+              <td>1–12.</td>
+            </tr>
+            <tr>
+              <td><code>Disease</code></td>
+              <td>
+                Display name. Must match a disease in <code>seeds/diseases.ts</code> by slug,
+                alias, or display name.
+              </td>
+            </tr>
+            <tr>
+              <td><code>Count</code></td>
+              <td>Integer. Blank/non-numeric is treated as missing and skipped.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section className="card">
+        <h3>Expected shape — wide format (auto-detected)</h3>
+        <p style={{ marginTop: 0 }}>
+          If <code>Disease</code> and <code>Count</code> aren&apos;t present, the page assumes
+          wide format and flattens it. One row per (year, month).
+        </p>
+        <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          <thead>
+            <tr>
+              <th align="left">Column</th>
+              <th align="left">What goes in it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Year</code></td>
+              <td>4-digit year.</td>
+            </tr>
+            <tr>
+              <td><code>Month</code></td>
+              <td>1–12.</td>
+            </tr>
+            <tr>
+              <td><em>any other column</em></td>
+              <td>
+                Treated as a disease — header is the disease name, cell is the count. Blank
+                cells are skipped (not stored as 0).
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="muted" style={{ fontSize: '0.85rem', marginBottom: 0 }}>
+          <strong>Idempotent on</strong>{' '}
+          <code>(year, month, disease_id)</code>. No example file ships with the repo —
+          monthly tables come from CDC&apos;s national notifiable diseases summary, separate
+          from the tick-borne disease report.
+        </p>
+      </section>
+
       <BasicImportForm action={importAction} />
     </div>
   )

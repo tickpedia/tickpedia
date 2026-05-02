@@ -147,6 +147,104 @@ export default async function Page() {
         (e.g. the 2024 A. americanum file) and <strong>multi-tick</strong>{' '}
         for files with one column pair per tick (e.g. the 2025 Ixodes file).
       </p>
+
+      <section className="card">
+        <h3>Expected shape — single tick</h3>
+        <p style={{ marginTop: 0 }}>
+          One row per county. One species per file. Pick the species + year in the form.
+        </p>
+        <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          <thead>
+            <tr>
+              <th align="left">Column</th>
+              <th align="left">What goes in it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>FIPS</code></td>
+              <td>5-digit county FIPS (or <code>FIPSCode</code>).</td>
+            </tr>
+            <tr>
+              <td><code>State</code>, <code>County</code></td>
+              <td>Display only.</td>
+            </tr>
+            <tr>
+              <td><code>Status</code></td>
+              <td>
+                One of <code>Established</code>, <code>Reported</code>, <code>No records</code>.
+                <code>No records</code> rows are skipped unless you tick &quot;keep no-records&quot;.
+              </td>
+            </tr>
+            <tr>
+              <td><code>Source</code></td>
+              <td>Citation string from the source file.</td>
+            </tr>
+            <tr>
+              <td><code>Source Comments</code></td>
+              <td>Optional — free-text qualification.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="muted" style={{ fontSize: '0.85rem' }}>
+          Example file: <code>2024-A.americanum-Surveillance-Map-Data.xlsx</code> (lone star,
+          year <code>2024</code>, tick <code>amblyomma-americanum</code>).
+        </p>
+      </section>
+
+      <section className="card">
+        <h3>Expected shape — multi-tick</h3>
+        <p style={{ marginTop: 0 }}>
+          One row per county. Multiple species side-by-side, each as a column pair. The page
+          auto-detects pairs by matching <code>&lt;scientific_name&gt;_status</code> with{' '}
+          <code>&lt;scientific_name&gt;_data_source</code> (case + underscores ignored).
+        </p>
+        <table style={{ width: '100%', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          <thead>
+            <tr>
+              <th align="left">Column pattern</th>
+              <th align="left">What goes in it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>FIPSCode</code></td>
+              <td>5-digit county FIPS.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>Ixodes_scapularis_County_Status</code>
+              </td>
+              <td>Status for that tick in that county.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>Ixodes_scapularis_data_source</code>
+              </td>
+              <td>Matching source citation.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>Ixodes_pacificus_county_status</code>, …
+              </td>
+              <td>Repeat the pair for each species in the file.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="muted" style={{ fontSize: '0.85rem' }}>
+          Example file: <code>Public_Use_Ixodes_County_Table_2026_03252026.xlsx</code> (year{' '}
+          <code>2026</code>, both <code>ixodes-scapularis</code> and{' '}
+          <code>ixodes-pacificus</code>). The species column-prefix must match an existing
+          tick&apos;s <code>scientificName</code> (case-insensitive, spaces &harr; underscores).
+        </p>
+      </section>
+
+      <p className="muted" style={{ fontSize: '0.85rem' }}>
+        <strong>Idempotent on</strong> <code>(tick_id, county_fips, year)</code>. Some files
+        ship with a banner row above the header — set <strong>header row index</strong> to{' '}
+        <code>1</code> in that case.
+      </p>
+
       <TickCountyImportForm action={importAction} ticks={knownTicks} />
     </div>
   )
