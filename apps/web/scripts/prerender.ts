@@ -30,6 +30,11 @@ import {
   prefetchStatePage,
   prefetchStatesIndex,
 } from '../src/ssr/prefetch/state.js'
+import {
+  prefetchCountyPage,
+  prefetchCountiesLeaderboard,
+  buildCountyPrefetchContext,
+} from '../src/ssr/prefetch/county.js'
 import { buildTickRangeHead } from '../src/pages/tick/seo.js'
 import { buildDiseaseSubPageHead } from '../src/pages/disease/seo.js'
 import { buildStateSubPageHead } from '../src/pages/state/seo.js'
@@ -184,10 +189,52 @@ async function main(): Promise<void> {
     written += await emit(template, ssr, `/states/${slug}/counties`,  cache, buildStateSubPageHead(state, 'Counties'))
   }
 
+  // ── County page family ──
+  const countiesIndex = await prefetchCountiesLeaderboard(client)
+  written += await emit(template, ssr, '/counties', countiesIndex.cache, countiesIndex.head)
+
+  const countyKeys = new Map<string, { state: string; slug: string }>()
+  for (const url of allUrls) {
+    if (url.kind === 'county' && url.parentSlug && url.slug && url.parentSlug !== 'unknown-state') {
+      countyKeys.set(`${url.parentSlug}/${url.slug}`, { state: url.parentSlug, slug: url.slug })
+    }
+  }
+
+  // Build the shared counties/states/diseases/ticks pools once. Each
+  // per-county prefetch then issues only 2 county-specific reads
+  // (casesByYear + tickCounty), pushing 3000+ counties through in a
+  // reasonable build window.
+  const countyCtx = await buildCountyPrefetchContext(client)
+  const countyEntries = [...countyKeys.values()]
+  const COUNTY_BATCH = 24
+  for (let i = 0; i < countyEntries.length; i += COUNTY_BATCH) {
+    const batch = countyEntries.slice(i, i + COUNTY_BATCH)
+    const results = await Promise.all(
+      batch.map(({ state: stateSlug, slug: countySlug }) =>
+        prefetchCountyPage(client, stateSlug, countySlug, countyCtx)
+          .then((p) => ({ stateSlug, countySlug, p })),
+      ),
+    )
+    for (const { stateSlug, countySlug, p } of results) {
+      if (!p) {
+        skipped += 1
+        continue
+      }
+      written += await emit(
+        template,
+        ssr,
+        `/counties/${stateSlug}/${countySlug}`,
+        p.cache,
+        p.head,
+      )
+    }
+  }
+
   const tookMs = Date.now() - startedAt
   console.log(
     `✓ prerendered ${written} HTML file${written === 1 ? '' : 's'} ` +
-      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ${stateSlugs.size} states, ${skipped} skipped) in ${tookMs}ms`,
+      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ` +
+      `${stateSlugs.size} states, ${countyKeys.size} counties, ${skipped} skipped) in ${tookMs}ms`,
   )
 }
 

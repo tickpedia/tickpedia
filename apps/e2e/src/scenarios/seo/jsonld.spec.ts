@@ -154,8 +154,47 @@ test.describe('seo · JSON-LD on tick pages', () => {
     expect(crumbs?.itemListElement[2]?.name).toBe('Maine')
   })
 
-  test.skip('county pages embed Place + geo block from county centroid', async () => {
-    /* phase 8 */
+  test('county pages embed Place + geo block from county centroid', async ({ request }) => {
+    const res = await request.get('/counties/maine/cumberland')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+
+    const schemas = extractJsonLd(body)
+    const place = schemas.find((s) => s['@type'] === 'Place') as
+      | {
+          name: string
+          url: string
+          alternateName?: string[]
+          containedInPlace?: {
+            '@type': string
+            name: string
+            url?: string
+            containedInPlace?: { '@type': string; name: string }
+          }
+          geo?: { '@type': string; latitude: number; longitude: number }
+        }
+      | undefined
+    expect(place).toBeDefined()
+    expect(place?.name).toMatch(/cumberland/i)
+    expect(place?.url).toBe('https://tickpedia.com/counties/maine/cumberland')
+    // Centroid presence — Census 2024 has Cumberland's lat/lng.
+    expect(place?.geo?.latitude).toBeGreaterThan(40)
+    expect(place?.geo?.latitude).toBeLessThan(50)
+    expect(place?.geo?.longitude).toBeLessThan(-65)
+    expect(place?.geo?.longitude).toBeGreaterThan(-75)
+    // containedInPlace chains county → state → country
+    expect(place?.containedInPlace?.name).toBe('Maine')
+    expect(place?.containedInPlace?.url).toBe('https://tickpedia.com/states/maine')
+    expect(place?.containedInPlace?.containedInPlace?.name).toBe('United States')
+
+    const crumbs = schemas.find((s) => s['@type'] === 'BreadcrumbList') as
+      | { itemListElement: Array<{ position: number; name: string; item?: string }> }
+      | undefined
+    expect(crumbs).toBeDefined()
+    expect(crumbs?.itemListElement).toHaveLength(5)
+    expect(crumbs?.itemListElement[2]?.name).toBe('Maine')
+    expect(crumbs?.itemListElement[3]?.name).toBe('Counties')
+    expect(crumbs?.itemListElement[4]?.name).toMatch(/cumberland/i)
   })
   test.skip('home embeds WebSite + SearchAction (Google sitelinks search box)', async () => {
     /* phase 10 */

@@ -82,6 +82,16 @@ const SEO_CASES: ReadonlyArray<SeoCase> = [
     expectedTitle: 'Maine — Counties | Tickpedia',
     expectedCanonical: 'https://tickpedia.com/states/maine/counties',
   },
+  {
+    path: '/counties',
+    expectedTitle: 'Counties — top-100 by tick-borne disease load | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/counties',
+  },
+  {
+    path: '/counties/maine/cumberland',
+    expectedTitle: 'Cumberland County — Maine | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/counties/maine/cumberland',
+  },
 ]
 
 test.describe('seo · per-page surface in raw HTML (no JS)', () => {

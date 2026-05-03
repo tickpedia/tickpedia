@@ -19,6 +19,8 @@ import { StatePage } from './pages/state/StatePage.js'
 import { StateTicksPage } from './pages/state/StateTicksPage.js'
 import { StateDiseasesPage } from './pages/state/StateDiseasesPage.js'
 import { StateCountiesPage } from './pages/state/StateCountiesPage.js'
+import { CountiesLeaderboardPage } from './pages/county/CountiesLeaderboardPage.js'
+import { CountyPage } from './pages/county/CountyPage.js'
 import { AboutPage } from './pages/meta/AboutPage.js'
 import { SourcesPage } from './pages/meta/SourcesPage.js'
 import { ContributePage } from './pages/meta/ContributePage.js'
@@ -91,6 +93,10 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     }
     if (matched.kind === 'state-counties' && matched.params.slug) {
       return <StateCountiesPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'counties-leaderboard') return <CountiesLeaderboardPage />
+    if (matched.kind === 'county' && matched.params.state && matched.params.slug) {
+      return <CountyPage stateSlug={matched.params.state} countySlug={matched.params.slug} />
     }
     if (matched.kind === 'about') return <AboutPage />
     if (matched.kind === 'sources') return <SourcesPage />

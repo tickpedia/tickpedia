@@ -552,6 +552,42 @@
     justify-self: center;
   }
 }
+/* ---- County hero (headline · neighbours sidebar) ----
+ * Two-column desktop layout matching the design's county mock; the
+ * neighbours sidebar wraps under the headline at <880px.
+ */
+.tp-county-hero {
+  padding: 20px 32px 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 36px;
+  align-items: start;
+}
+.tp-county-hero h1 {
+  font-size: clamp(34px, 6.4vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  margin: 10px 0 6px;
+}
+.tp-county-hero .lede {
+  font-size: clamp(16px, 1.8vw, 19px);
+  color: var(--ink-2);
+  line-height: 1.5;
+  max-width: 620px;
+}
+@media (max-width: 880px) {
+  .tp-county-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 18px 20px 24px;
+  }
+}
+@media (max-width: 560px) {
+  .tp-county-hero {
+    padding: 16px 16px 20px;
+  }
+}
+
 .tp-section h2 {
   font-size: 22px;
 }

@@ -35,7 +35,10 @@ export default defineConfig({
     reuseExistingServer: false,
     stdout: 'pipe',
     stderr: 'pipe',
-    timeout: 120_000,
+    // 5 minutes — the prerender pass writes ~3000 county pages
+    // alongside every other static URL; ~60-90s on a warm tenant,
+    // longer when SemiLayer caches are cold.
+    timeout: 300_000,
     cwd: resolve(import.meta.dirname, '..', '..'),
     env: {
       // Anything the preview server needs at runtime goes here.
