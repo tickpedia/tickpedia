@@ -26,8 +26,13 @@ import {
   prefetchTechniquePage,
   prefetchTechniquesIndex,
 } from '../src/ssr/prefetch/technique.js'
+import {
+  prefetchStatePage,
+  prefetchStatesIndex,
+} from '../src/ssr/prefetch/state.js'
 import { buildTickRangeHead } from '../src/pages/tick/seo.js'
 import { buildDiseaseSubPageHead } from '../src/pages/disease/seo.js'
+import { buildStateSubPageHead } from '../src/pages/state/seo.js'
 import { buildHeadHtml } from '../src/pages/shared/seo/index.js'
 import {
   serializeDataCache,
@@ -149,10 +154,40 @@ async function main(): Promise<void> {
     written += await emit(template, ssr, `/techniques/${slug}`, prefetched.cache, prefetched.head)
   }
 
+  // ── State page family ──
+  const statesIndex = await prefetchStatesIndex(client)
+  written += await emit(template, ssr, '/states', statesIndex.cache, statesIndex.head)
+
+  const stateSlugs = new Set<string>()
+  for (const url of allUrls) {
+    if (
+      (url.kind === 'state' ||
+        url.kind === 'state-ticks' ||
+        url.kind === 'state-diseases' ||
+        url.kind === 'state-counties') &&
+      url.slug
+    ) {
+      stateSlugs.add(url.slug)
+    }
+  }
+
+  for (const slug of stateSlugs) {
+    const prefetched = await prefetchStatePage(client, slug)
+    if (!prefetched) {
+      skipped += 1
+      continue
+    }
+    const { cache, head, state } = prefetched
+    written += await emit(template, ssr, `/states/${slug}`,           cache, head)
+    written += await emit(template, ssr, `/states/${slug}/ticks`,     cache, buildStateSubPageHead(state, 'Ticks'))
+    written += await emit(template, ssr, `/states/${slug}/diseases`,  cache, buildStateSubPageHead(state, 'Diseases'))
+    written += await emit(template, ssr, `/states/${slug}/counties`,  cache, buildStateSubPageHead(state, 'Counties'))
+  }
+
   const tookMs = Date.now() - startedAt
   console.log(
     `✓ prerendered ${written} HTML file${written === 1 ? '' : 's'} ` +
-      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ${skipped} skipped) in ${tookMs}ms`,
+      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ${stateSlugs.size} states, ${skipped} skipped) in ${tookMs}ms`,
   )
 }
 

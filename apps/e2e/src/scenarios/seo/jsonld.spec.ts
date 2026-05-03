@@ -125,6 +125,35 @@ test.describe('seo · JSON-LD on tick pages', () => {
     expect(crumbs?.itemListElement).toHaveLength(3)
     expect(crumbs?.itemListElement[1]?.name).toBe('Techniques')
   })
+  test('state pages embed Place + BreadcrumbList', async ({ request }) => {
+    const res = await request.get('/states/maine')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+
+    const schemas = extractJsonLd(body)
+    const place = schemas.find((s) => s['@type'] === 'Place') as
+      | {
+          name: string
+          url: string
+          alternateName?: string[]
+          containedInPlace?: { '@type': string; name: string }
+        }
+      | undefined
+    expect(place).toBeDefined()
+    expect(place?.name).toBe('Maine')
+    expect(place?.url).toBe('https://tickpedia.com/states/maine')
+    expect(place?.alternateName).toContain('ME')
+    expect(place?.containedInPlace?.name).toBe('United States')
+
+    const crumbs = schemas.find((s) => s['@type'] === 'BreadcrumbList') as
+      | { itemListElement: Array<{ position: number; name: string; item?: string }> }
+      | undefined
+    expect(crumbs).toBeDefined()
+    expect(crumbs?.itemListElement).toHaveLength(3)
+    expect(crumbs?.itemListElement[1]?.name).toBe('States')
+    expect(crumbs?.itemListElement[2]?.name).toBe('Maine')
+  })
+
   test.skip('county pages embed Place + geo block from county centroid', async () => {
     /* phase 8 */
   })

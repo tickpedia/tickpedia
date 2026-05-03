@@ -14,6 +14,11 @@ import { DiseaseTicksPage } from './pages/disease/DiseaseTicksPage.js'
 import { DiseasePathogensPage } from './pages/disease/DiseasePathogensPage.js'
 import { TechniquesIndexPage } from './pages/technique/TechniquesIndexPage.js'
 import { TechniquePage } from './pages/technique/TechniquePage.js'
+import { StatesIndexPage } from './pages/state/StatesIndexPage.js'
+import { StatePage } from './pages/state/StatePage.js'
+import { StateTicksPage } from './pages/state/StateTicksPage.js'
+import { StateDiseasesPage } from './pages/state/StateDiseasesPage.js'
+import { StateCountiesPage } from './pages/state/StateCountiesPage.js'
 import { AboutPage } from './pages/meta/AboutPage.js'
 import { SourcesPage } from './pages/meta/SourcesPage.js'
 import { ContributePage } from './pages/meta/ContributePage.js'
@@ -73,6 +78,19 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     if (matched.kind === 'techniques-index') return <TechniquesIndexPage />
     if (matched.kind === 'technique' && matched.params.slug) {
       return <TechniquePage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'states-index') return <StatesIndexPage />
+    if (matched.kind === 'state' && matched.params.slug) {
+      return <StatePage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'state-ticks' && matched.params.slug) {
+      return <StateTicksPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'state-diseases' && matched.params.slug) {
+      return <StateDiseasesPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'state-counties' && matched.params.slug) {
+      return <StateCountiesPage slug={matched.params.slug} />
     }
     if (matched.kind === 'about') return <AboutPage />
     if (matched.kind === 'sources') return <SourcesPage />

@@ -57,6 +57,31 @@ const SEO_CASES: ReadonlyArray<SeoCase> = [
     expectedTitle: 'Fine-tipped tweezers (CDC method) — Techniques | Tickpedia',
     expectedCanonical: 'https://tickpedia.com/techniques/fine-tipped-tweezers',
   },
+  {
+    path: '/states',
+    expectedTitle: 'States — Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/states',
+  },
+  {
+    path: '/states/maine',
+    expectedTitle: 'Maine — States | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/states/maine',
+  },
+  {
+    path: '/states/maine/ticks',
+    expectedTitle: 'Maine — Ticks | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/states/maine/ticks',
+  },
+  {
+    path: '/states/maine/diseases',
+    expectedTitle: 'Maine — Diseases | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/states/maine/diseases',
+  },
+  {
+    path: '/states/maine/counties',
+    expectedTitle: 'Maine — Counties | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/states/maine/counties',
+  },
 ]
 
 test.describe('seo · per-page surface in raw HTML (no JS)', () => {
