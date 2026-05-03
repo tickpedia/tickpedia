@@ -1,8 +1,11 @@
 import type { BeamClient } from '@semilayer/client'
 import type { DataCache } from '../SSRDataProvider.js'
 import type { PageHead } from '../../pages/shared/seo/index.js'
-import type { TechniqueRow, TechniqueKind } from '../../pages/technique/data/useTechnique.js'
-import { normalizeTechnique } from '../../pages/technique/data/useTechnique.js'
+import {
+  normalizeTechnique,
+  type TechniqueRow,
+  type TechniqueKind,
+} from '../../pages/technique/data/normalize.js'
 import type { TechniqueTickRow } from '../../pages/technique/data/useTechniqueTicks.js'
 import type { TechniqueDiseaseRow } from '../../pages/technique/data/useTechniqueDiseases.js'
 import type { TechniqueIndexRow } from '../../pages/technique/data/useTechniquesIndex.js'
