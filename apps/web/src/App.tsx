@@ -15,6 +15,11 @@ import { DiseaseSeasonalityPage } from './pages/disease/DiseaseSeasonalityPage.j
 import { DiseaseHistoryPage } from './pages/disease/DiseaseHistoryPage.js'
 import { DiseaseTicksPage } from './pages/disease/DiseaseTicksPage.js'
 import { DiseasePathogensPage } from './pages/disease/DiseasePathogensPage.js'
+import { PathogensIndexPage } from './pages/pathogen/PathogensIndexPage.js'
+import { PathogenPage } from './pages/pathogen/PathogenPage.js'
+import { PathogenRangePage } from './pages/pathogen/PathogenRangePage.js'
+import { PathogenTicksPage } from './pages/pathogen/PathogenTicksPage.js'
+import { PathogenDiseasesPage } from './pages/pathogen/PathogenDiseasesPage.js'
 import { TechniquesIndexPage } from './pages/technique/TechniquesIndexPage.js'
 import { TechniquePage } from './pages/technique/TechniquePage.js'
 import { StatesIndexPage } from './pages/state/StatesIndexPage.js'
@@ -89,6 +94,19 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     }
     if (matched.kind === 'disease-pathogens' && matched.params.slug) {
       return <DiseasePathogensPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'pathogens-index') return <PathogensIndexPage />
+    if (matched.kind === 'pathogen' && matched.params.slug) {
+      return <PathogenPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'pathogen-range' && matched.params.slug) {
+      return <PathogenRangePage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'pathogen-ticks' && matched.params.slug) {
+      return <PathogenTicksPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'pathogen-diseases' && matched.params.slug) {
+      return <PathogenDiseasesPage slug={matched.params.slug} />
     }
     if (matched.kind === 'techniques-index') return <TechniquesIndexPage />
     if (matched.kind === 'technique' && matched.params.slug) {

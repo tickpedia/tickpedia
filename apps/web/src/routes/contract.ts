@@ -39,6 +39,12 @@ export type EntityKind =
   | 'disease-ticks'
   | 'disease-pathogens'
   | 'disease-history'
+  // pathogens
+  | 'pathogens-index'
+  | 'pathogen'
+  | 'pathogen-range'
+  | 'pathogen-ticks'
+  | 'pathogen-diseases'
   // techniques
   | 'techniques-index'
   | 'technique'
@@ -58,6 +64,7 @@ export type EntityKind =
 export type SlugSource =
   | 'ticks'
   | 'diseases'
+  | 'pathogens'
   | 'removalTechniques'
   | 'states'
   | 'counties'
@@ -99,6 +106,13 @@ export const URL_PATTERNS: readonly UrlPattern[] = [
   { kind: 'disease-ticks',        path: '/diseases/:slug/ticks',          slugSource: 'diseases' },
   { kind: 'disease-pathogens',    path: '/diseases/:slug/pathogens',      slugSource: 'diseases' },
   { kind: 'disease-history',      path: '/diseases/:slug/history',        slugSource: 'diseases' },
+
+  // Pathogens
+  { kind: 'pathogens-index',      path: '/pathogens',                     slugSource: null },
+  { kind: 'pathogen',             path: '/pathogens/:slug',               slugSource: 'pathogens' },
+  { kind: 'pathogen-range',       path: '/pathogens/:slug/range',         slugSource: 'pathogens' },
+  { kind: 'pathogen-ticks',       path: '/pathogens/:slug/ticks',         slugSource: 'pathogens' },
+  { kind: 'pathogen-diseases',    path: '/pathogens/:slug/diseases',      slugSource: 'pathogens' },
 
   // Techniques
   { kind: 'techniques-index',     path: '/techniques',                    slugSource: null },

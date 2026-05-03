@@ -4,10 +4,12 @@ import type { PageHead } from '../../pages/shared/seo/index.js'
 import type { TickRow } from '../../pages/tick/data/useTick.js'
 import type { TickRangeData } from '../../pages/tick/data/useTickRange.js'
 import type { TickDiseaseRow } from '../../pages/tick/data/useTickDiseases.js'
+import type { TickPathogenRow } from '../../pages/tick/data/useTickPathogens.js'
 import {
   tickCacheKey,
   tickRangeCacheKey,
   tickDiseasesCacheKey,
+  tickPathogensCacheKey,
 } from '../../pages/tick/data/cache-keys.js'
 import { buildTickHead } from '../../pages/tick/seo.js'
 
@@ -59,23 +61,43 @@ export async function prefetchTickPage(
   const tick = tickRes.rows[0]
   if (!tick) return null
 
-  const [byStateRes, spreadRes, joinRes, diseasesRes] = await Promise.all([
-    client.analyze('tickCounty', 'establishedByState', {
-      where: { tickId: tick.id },
-    }) as Promise<AnalyzeResult<{ stateFips: unknown }, { counties: number }>>,
-    client.analyze('tickCounty', 'spreadOverTime', {
-      where: { tickId: tick.id },
-    }) as Promise<AnalyzeResult<{ year: number }, { counties: number }>>,
-    client.query('tickDiseases', {
-      where: { tickId: tick.id },
-      fields: ['diseaseId'],
-      limit: 50,
-    }) as Promise<QueryResponse<{ diseaseId: number }>>,
-    client.query('diseases', {
-      fields: ['id', 'slug', 'displayName', 'oneLiner'],
-      limit: 100,
-    }) as Promise<QueryResponse<{ id: number; slug: string; displayName: string; oneLiner: string | null }>>,
-  ])
+  const [byStateRes, spreadRes, joinRes, diseasesRes, pathogenJoinRes, pathogensRes] =
+    await Promise.all([
+      client.analyze('tickCounty', 'establishedByState', {
+        where: { tickId: tick.id },
+      }) as Promise<AnalyzeResult<{ stateFips: unknown }, { counties: number }>>,
+      client.analyze('tickCounty', 'spreadOverTime', {
+        where: { tickId: tick.id },
+      }) as Promise<AnalyzeResult<{ year: number }, { counties: number }>>,
+      client.query('tickDiseases', {
+        where: { tickId: tick.id },
+        fields: ['diseaseId'],
+        limit: 50,
+      }) as Promise<QueryResponse<{ diseaseId: number }>>,
+      client.query('diseases', {
+        fields: ['id', 'slug', 'displayName', 'oneLiner'],
+        limit: 100,
+      }) as Promise<
+        QueryResponse<{ id: number; slug: string; displayName: string; oneLiner: string | null }>
+      >,
+      client.query('tickPathogens', {
+        where: { tickId: tick.id },
+        fields: ['pathogenId'],
+        limit: 50,
+      }) as Promise<QueryResponse<{ pathogenId: number }>>,
+      client.query('pathogens', {
+        fields: ['id', 'slug', 'displayName', 'scientificName', 'oneLiner'],
+        limit: 100,
+      }) as Promise<
+        QueryResponse<{
+          id: number
+          slug: string
+          displayName: string
+          scientificName: string
+          oneLiner: string | null
+        }>
+      >,
+    ])
 
   const byStateFips: Record<string, number> = {}
   for (const b of byStateRes.buckets) {
@@ -104,10 +126,23 @@ export async function prefetchTickPage(
     }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName))
 
+  const pathogenIds = new Set(pathogenJoinRes.rows.map((r) => r.pathogenId))
+  const tickPathogens: TickPathogenRow[] = pathogensRes.rows
+    .filter((p) => pathogenIds.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      slug: p.slug ?? '',
+      displayName: p.displayName ?? '',
+      scientificName: p.scientificName ?? '',
+      oneLiner: p.oneLiner ?? null,
+    }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+
   const cache: DataCache = {
     [tickCacheKey(slug)]: tick,
     [tickRangeCacheKey(tick.id)]: range,
     [tickDiseasesCacheKey(tick.id)]: tickDiseases,
+    [tickPathogensCacheKey(tick.id)]: tickPathogens,
   }
 
   return { cache, head: buildTickHead(tick) }

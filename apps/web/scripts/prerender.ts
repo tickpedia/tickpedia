@@ -23,6 +23,10 @@ import { listCanonicalUrls } from '../src/routes/canonical-urls.js'
 import { prefetchTickPage } from '../src/ssr/prefetch/tick.js'
 import { prefetchDiseasePage } from '../src/ssr/prefetch/disease.js'
 import {
+  prefetchPathogenPage,
+  prefetchPathogensIndex,
+} from '../src/ssr/prefetch/pathogen.js'
+import {
   prefetchTechniquePage,
   prefetchTechniquesIndex,
 } from '../src/ssr/prefetch/technique.js'
@@ -49,6 +53,7 @@ import {
 import { prefetchSeason } from '../src/ssr/prefetch/season.js'
 import { buildTickRangeHead } from '../src/pages/tick/seo.js'
 import { buildDiseaseSubPageHead } from '../src/pages/disease/seo.js'
+import { buildPathogenSubPageHead } from '../src/pages/pathogen/seo.js'
 import { buildStateSubPageHead } from '../src/pages/state/seo.js'
 import { buildHeadHtml } from '../src/pages/shared/seo/index.js'
 import {
@@ -151,6 +156,36 @@ async function main(): Promise<void> {
     written += await emit(template, ssr, `/diseases/${slug}/history`,      cache, buildDiseaseSubPageHead(disease, 'History'))
     written += await emit(template, ssr, `/diseases/${slug}/ticks`,        cache, buildDiseaseSubPageHead(disease, 'Ticks'))
     written += await emit(template, ssr, `/diseases/${slug}/pathogens`,    cache, buildDiseaseSubPageHead(disease, 'Pathogens'))
+  }
+
+  // ── Pathogen page family ──
+  const pathogensIndex = await prefetchPathogensIndex(client)
+  written += await emit(template, ssr, '/pathogens', pathogensIndex.cache, pathogensIndex.head)
+
+  const pathogenSlugs = new Set<string>()
+  for (const url of allUrls) {
+    if (
+      (url.kind === 'pathogen' ||
+        url.kind === 'pathogen-range' ||
+        url.kind === 'pathogen-ticks' ||
+        url.kind === 'pathogen-diseases') &&
+      url.slug
+    ) {
+      pathogenSlugs.add(url.slug)
+    }
+  }
+
+  for (const slug of pathogenSlugs) {
+    const prefetched = await prefetchPathogenPage(client, slug)
+    if (!prefetched) {
+      skipped += 1
+      continue
+    }
+    const { cache, head, pathogen } = prefetched
+    written += await emit(template, ssr, `/pathogens/${slug}`,          cache, head)
+    written += await emit(template, ssr, `/pathogens/${slug}/range`,    cache, buildPathogenSubPageHead(pathogen, 'Range'))
+    written += await emit(template, ssr, `/pathogens/${slug}/ticks`,    cache, buildPathogenSubPageHead(pathogen, 'Ticks'))
+    written += await emit(template, ssr, `/pathogens/${slug}/diseases`, cache, buildPathogenSubPageHead(pathogen, 'Diseases'))
   }
 
   // ── Technique page family ──
@@ -290,9 +325,9 @@ async function main(): Promise<void> {
   const tookMs = Date.now() - startedAt
   console.log(
     `✓ prerendered ${written} HTML file${written === 1 ? '' : 's'} ` +
-      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ` +
-      `${stateSlugs.size} states, ${countyKeys.size} counties, ${factSlugs.size} facts, ` +
-      `${riskDiseasesEmitted} risk-disease, ${skipped} skipped) in ${tookMs}ms`,
+      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${pathogenSlugs.size} pathogens, ` +
+      `${techniqueSlugs.size} techniques, ${stateSlugs.size} states, ${countyKeys.size} counties, ` +
+      `${factSlugs.size} facts, ${riskDiseasesEmitted} risk-disease, ${skipped} skipped) in ${tookMs}ms`,
   )
 }
 

@@ -2,11 +2,13 @@ import { PageHeader, Crumb, Footer, useDocumentHead } from '../shared/index.js'
 import { useTick } from './data/useTick.js'
 import { useTickRange } from './data/useTickRange.js'
 import { useTickDiseases } from './data/useTickDiseases.js'
+import { useTickPathogens } from './data/useTickPathogens.js'
 import { useTickTechniques } from './data/useTickTechniques.js'
 import { useEntityFacts } from '../fact/data/useEntityFacts.js'
 import { HeroSection } from './sections/HeroSection.js'
 import { RangeSection } from './sections/RangeSection.js'
 import { DiseasesSection } from './sections/DiseasesSection.js'
+import { PathogensSection } from './sections/PathogensSection.js'
 import { TechniquesSection } from './sections/TechniquesSection.js'
 import { FactsRail } from '../fact/sections/FactsRail.js'
 import { buildTickHead } from './seo.js'
@@ -26,6 +28,7 @@ export function TickPage({ slug }: TickPageProps) {
 
   const range = useTickRange(tickId)
   const diseases = useTickDiseases(tickId)
+  const pathogens = useTickPathogens(tickId)
   const techniques = useTickTechniques(tickId)
   const facts = useEntityFacts('tick', tickId)
 
@@ -55,6 +58,7 @@ export function TickPage({ slug }: TickPageProps) {
     ? Object.values(range.data.byStateFips).reduce((a, b) => a + b, 0)
     : null
   const diseaseCount = diseases.loading ? null : diseases.rows.length
+  const pathogenCount = pathogens.loading ? null : pathogens.rows.length
 
   return (
     <div className="tp-page" data-testid="tick-page">
@@ -72,6 +76,7 @@ export function TickPage({ slug }: TickPageProps) {
         tick={tick}
         establishedCounties={establishedCounties}
         diseaseCount={diseaseCount}
+        pathogenCount={pathogenCount}
       />
       <RangeSection
         tickSlug={tick.slug}
@@ -81,6 +86,12 @@ export function TickPage({ slug }: TickPageProps) {
         error={range.error}
       />
       <DiseasesSection rows={diseases.rows} loading={diseases.loading} error={diseases.error} />
+      <PathogensSection
+        rows={pathogens.rows}
+        loading={pathogens.loading}
+        error={pathogens.error}
+        tickName={tick.commonName}
+      />
       <TechniquesSection
         buckets={techniques.buckets}
         loading={techniques.loading}

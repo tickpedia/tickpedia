@@ -22,3 +22,7 @@ export function tickDiseasesCacheKey(tickId: number): string {
 export function tickTechniquesCacheKey(tickId: number): string {
   return `tickTechniques:${tickId}`
 }
+
+export function tickPathogensCacheKey(tickId: number): string {
+  return `tickPathogens:${tickId}`
+}

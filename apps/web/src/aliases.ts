@@ -32,6 +32,20 @@ export const ALIASES: readonly Alias[] = [
   { from: '/diseases/rocky-mountain-spotted-fever', to: '/diseases/spotted-fever-rickettsiosis' },
   { from: '/diseases/alpha-gal',                    to: '/diseases/alpha-gal-syndrome' },
 
+  // Pathogen alternates — scientific-name shortenings + colloquial names →
+  // the canonical full binomial. See step 05 §B4 for the full table.
+  { from: '/pathogens/borrelia-burgdorferi-sensu-stricto', to: '/pathogens/borrelia-burgdorferi' },
+  { from: '/pathogens/b-burgdorferi',                      to: '/pathogens/borrelia-burgdorferi' },
+  { from: '/pathogens/b-mayonii',                          to: '/pathogens/borrelia-mayonii' },
+  { from: '/pathogens/b-miyamotoi',                        to: '/pathogens/borrelia-miyamotoi' },
+  { from: '/pathogens/a-phagocytophilum',                  to: '/pathogens/anaplasma-phagocytophilum' },
+  { from: '/pathogens/b-microti',                          to: '/pathogens/babesia-microti' },
+  { from: '/pathogens/ehrlichia-muris',                    to: '/pathogens/ehrlichia-muris-eauclairensis' },
+  { from: '/pathogens/eml',                                to: '/pathogens/ehrlichia-muris-eauclairensis' },
+  { from: '/pathogens/powv',                               to: '/pathogens/powassan-virus' },
+  { from: '/pathogens/deer-tick-virus',                    to: '/pathogens/powassan-virus' },
+  { from: '/pathogens/dtv',                                to: '/pathogens/powassan-virus' },
+
   // State USPS / FIPS → full-name canonical
   { from: '/states/me', to: '/states/maine' },
   { from: '/states/23', to: '/states/maine' },

@@ -699,6 +699,19 @@ a.tp-chip:hover,
   text-align: right;
 }
 
+/* Narrow-viewport tables: if a row's content exceeds the column width
+ * (long binomial names like "Borrelia burgdorferi sensu stricto"), let
+ * the table itself scroll horizontally instead of pushing the whole
+ * document past the viewport. */
+@media (max-width: 560px) {
+  .tp-table {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 .tp-stat .v {
   font-family: 'Newsreader', Georgia, serif;
   font-size: 30px;

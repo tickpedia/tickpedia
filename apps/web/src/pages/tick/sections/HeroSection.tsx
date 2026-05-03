@@ -14,9 +14,16 @@ export interface HeroSectionProps {
   establishedCounties: number | null
   /** Number of diseases this tick is known to carry. `null` while loading. */
   diseaseCount: number | null
+  /** Number of pathogens this tick carries. `null` while loading. */
+  pathogenCount: number | null
 }
 
-export function HeroSection({ tick, establishedCounties, diseaseCount }: HeroSectionProps) {
+export function HeroSection({
+  tick,
+  establishedCounties,
+  diseaseCount,
+  pathogenCount,
+}: HeroSectionProps) {
   const colors: TickArtColors = {
     headColor: tick.heroHeadColor ?? '#3a2a1a',
     bodyColor: tick.heroBodyColor ?? '#7a4a2a',
@@ -57,6 +64,15 @@ export function HeroSection({ tick, establishedCounties, diseaseCount }: HeroSec
               title="Jump to the diseases this tick carries"
             >
               {diseaseCount === 1 ? 'Carries 1 disease' : `Carries ${diseaseCount} diseases`}
+            </a>
+          )}
+          {pathogenCount !== null && pathogenCount > 0 && (
+            <a
+              className="tp-chip tp-chip-link"
+              href="#pathogens"
+              title="Jump to the pathogens this tick carries"
+            >
+              {pathogenCount === 1 ? 'Pathogens · 1' : `Pathogens · ${pathogenCount}`}
             </a>
           )}
           {establishedCounties !== null && establishedCounties > 0 && (

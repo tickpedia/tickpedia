@@ -165,6 +165,47 @@ const PAGE_READS_LIST: readonly PageReads[] = [
     ],
   },
 
+  // ─── Pathogens ───────────────────────────────────────────────────
+  {
+    kind: 'pathogens-index',
+    reads: [
+      { label: 'pathogens.query',                       run: (_, c) => c.query('pathogens', { fields: ['id', 'slug', 'displayName'], limit: 50 }) },
+      { label: 'tickPathogens.ticksPerPathogen',        run: (_, c) => c.analyze('tickPathogens', 'ticksPerPathogen') },
+      { label: 'diseasePathogens.diseasesPerPathogen',  run: (_, c) => c.analyze('diseasePathogens', 'diseasesPerPathogen') },
+    ],
+  },
+  {
+    kind: 'pathogen',
+    reads: [
+      { label: 'pathogens.query(slug)',                 run: (url, c) => c.query('pathogens', { where: { slug: url.slug }, limit: 1 }) },
+      { label: 'tickPathogens.ticksPerPathogen',        run: (_, c) => c.analyze('tickPathogens', 'ticksPerPathogen') },
+      { label: 'diseasePathogens.diseasesPerPathogen',  run: (_, c) => c.analyze('diseasePathogens', 'diseasesPerPathogen') },
+    ],
+  },
+  {
+    kind: 'pathogen-range',
+    reads: [
+      { label: 'pathogens.query(slug)', run: (url, c) => c.query('pathogens', { where: { slug: url.slug }, limit: 1 }) },
+      // pathogenCounty surveillance is populated for some pathogens but
+      // not others — render the empty state rather than failing the smoke.
+      { label: 'pathogenCounty.query',  run: (_, c) => c.query('pathogenCounty', { fields: ['countyFips', 'year'], limit: 5 }), emptyOk: true },
+    ],
+  },
+  {
+    kind: 'pathogen-ticks',
+    reads: [
+      { label: 'pathogens.query(slug)',           run: (url, c) => c.query('pathogens', { where: { slug: url.slug }, limit: 1 }) },
+      { label: 'tickPathogens.ticksPerPathogen',  run: (_, c) => c.analyze('tickPathogens', 'ticksPerPathogen') },
+    ],
+  },
+  {
+    kind: 'pathogen-diseases',
+    reads: [
+      { label: 'pathogens.query(slug)',                  run: (url, c) => c.query('pathogens', { where: { slug: url.slug }, limit: 1 }) },
+      { label: 'diseasePathogens.diseasesPerPathogen',   run: (_, c) => c.analyze('diseasePathogens', 'diseasesPerPathogen') },
+    ],
+  },
+
   // ─── Techniques ──────────────────────────────────────────────────
   {
     kind: 'techniques-index',
