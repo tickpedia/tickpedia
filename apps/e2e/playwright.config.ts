@@ -11,6 +11,16 @@ const PORT = Number(process.env.E2E_WEB_PORT ?? 4173)
 const baseURL = `http://localhost:${PORT}`
 const webRoot = resolve(import.meta.dirname, '..', 'web')
 
+// Local fast loops:
+//   E2E_SKIP_BUILD=1 — skip the apps/web rebuild and just serve the
+//     existing dist/. Use after you've already built once and only
+//     spec files have changed.
+//   reuseExistingServer (non-CI) — if a preview is already serving
+//     PORT, e2e attaches to it instead of booting its own.
+const skipBuild = process.env.E2E_SKIP_BUILD === '1'
+const previewCmd = `pnpm --filter @tickpedia/web preview --port ${PORT} --strictPort`
+const buildAndPreviewCmd = `pnpm --filter @tickpedia/web build && ${previewCmd}`
+
 export default defineConfig({
   testDir: resolve(import.meta.dirname, 'src'),
   testMatch: /.*\.spec\.ts$/,
@@ -29,16 +39,20 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    // Build once, then preview. Hermetic — no shared dev server.
-    command: `pnpm --filter @tickpedia/web build && pnpm --filter @tickpedia/web preview --port ${PORT} --strictPort`,
+    // Build once, then preview. Hermetic — no shared dev server in CI.
+    command: skipBuild ? previewCmd : buildAndPreviewCmd,
     url: baseURL,
-    reuseExistingServer: false,
+    // CI must always boot a fresh server (build artifacts can't be
+    // trusted across runs). Locally, attach to whatever is already
+    // listening on PORT — that's what makes `pnpm preview` + `pnpm e2e`
+    // a fast inner loop.
+    reuseExistingServer: !process.env.CI,
     stdout: 'pipe',
     stderr: 'pipe',
     // 5 minutes — the prerender pass writes ~3000 county pages
     // alongside every other static URL; ~60-90s on a warm tenant,
-    // longer when SemiLayer caches are cold.
-    timeout: 300_000,
+    // longer when SemiLayer caches are cold. Preview-only is seconds.
+    timeout: skipBuild ? 30_000 : 300_000,
     cwd: resolve(import.meta.dirname, '..', '..'),
     env: {
       // Anything the preview server needs at runtime goes here.

@@ -13,6 +13,13 @@ pnpm --filter @tickpedia/e2e install-browsers
 # run
 pnpm e2e
 
+# fast inner loop (skips the apps/web rebuild — `dist/` must be current)
+E2E_SKIP_BUILD=1 pnpm e2e
+
+# or leave a preview running in another terminal: e2e attaches to it
+pnpm --filter @tickpedia/web preview
+pnpm e2e
+
 # debug
 pnpm e2e:ui
 ```
