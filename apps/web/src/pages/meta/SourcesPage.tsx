@@ -93,11 +93,6 @@ const SOURCE_GROUPS: SourceGroup[] = [
         url: 'https://github.com/tickpedia/tickpedia',
         what: 'Source code, schema, editorial JSON, and issue tracker.',
       },
-      {
-        name: 'github.com/tickpedia/plan',
-        url: 'https://github.com/tickpedia/plan',
-        what: 'Public roadmap, design briefs, and per-step decision log.',
-      },
     ],
   },
 ]

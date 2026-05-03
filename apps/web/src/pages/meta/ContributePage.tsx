@@ -61,12 +61,11 @@ export function ContributePage() {
             .
           </li>
           <li>
-            Read the bootstrap checklist at{' '}
-            <a href="https://github.com/tickpedia/plan/blob/main/steps/01_bootstrap.md" rel="noreferrer">
-              plan/steps/01_bootstrap.md
-            </a>{' '}
-            — fresh-clone-to-green-tests in under 30 minutes if you
-            have Docker.
+            Run <code>pnpm db:setup:local</code> to boot Postgres,
+            migrate, and seed in one shot. Then{' '}
+            <code>pnpm verify</code> to confirm everything is green
+            — should take under 30 minutes from a fresh clone if
+            you have Docker.
           </li>
           <li>
             Open a PR against <code>main</code>. CI runs typecheck,
