@@ -69,11 +69,9 @@ export function RangeSection({ tickSlug, tickCommon, data, loading, error }: Ran
 function fipsToData(data: TickRangeData | null): Record<string, number> {
   if (!data) return {}
   // The Choropleth reads keys as USPS codes, so map FIPS → code
-  // using the inline table we keep next door. Until the page-level
-  // FIPS-to-USPS join lands, just re-key by FIPS — Choropleth will
-  // show absent fills (which is the correct loading state).
+  // using the inline table we keep next door.
   const out: Record<string, number> = {}
-  for (const [fips, count] of data.byStateFips) {
+  for (const [fips, count] of Object.entries(data.byStateFips)) {
     const code = USPS_BY_FIPS[fips]
     if (code) out[code] = count
   }
@@ -82,8 +80,8 @@ function fipsToData(data: TickRangeData | null): Record<string, number> {
 
 function summaryParagraph(tickCommon: string, data: TickRangeData | null): string {
   if (!data) return `Loading the established range for ${tickCommon}.`
-  const states = data.byStateFips.size
-  const total = [...data.byStateFips.values()].reduce((a, b) => a + b, 0)
+  const states = Object.keys(data.byStateFips).length
+  const total = Object.values(data.byStateFips).reduce((a, b) => a + b, 0)
   if (states === 0) {
     return `No CDC-reported established counties yet for ${tickCommon}. The range will populate as new surveillance reports land.`
   }

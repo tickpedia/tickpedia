@@ -1,27 +1,97 @@
 import { test, expect } from '@playwright/test'
 
-// Canonical-link enforcement. Each shipped page must declare exactly
-// one `<link rel="canonical">` and it must match the public URL on
-// tickpedia.com. New page kinds get their canonical added here.
+// Per-page SEO is shipped via build-time SSR prerender (Section B5
+// of plan/steps/05_design_handoff_and_urls.md), so these specs fetch
+// the raw HTML response — no `page.goto`, no JS execution. That's
+// exactly what `view-source:` and social-card scrapers see.
+//
+// New page kinds get their canonical added here once their per-kind
+// prefetch lands.
 
-const CANONICAL_CASES: ReadonlyArray<{ path: string; href: string }> = [
+interface SeoCase {
+  path: string
+  expectedTitle: string
+  expectedCanonical: string
+  /** Substring expected in the meta description. */
+  descriptionContains?: string
+}
+
+const SEO_CASES: ReadonlyArray<SeoCase> = [
   {
     path: '/ticks/blacklegged-tick',
-    href: 'https://tickpedia.com/ticks/blacklegged-tick',
+    expectedTitle: 'Blacklegged tick — Ticks | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/ticks/blacklegged-tick',
+  },
+  {
+    path: '/ticks/lone-star-tick',
+    expectedTitle: 'Lone star tick — Ticks | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/ticks/lone-star-tick',
   },
   {
     path: '/ticks/blacklegged-tick/range',
-    href: 'https://tickpedia.com/ticks/blacklegged-tick/range',
+    expectedTitle: 'Blacklegged tick range — Ticks | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/ticks/blacklegged-tick/range',
   },
 ]
 
-test.describe('seo · canonical links', () => {
-  for (const { path, href } of CANONICAL_CASES) {
-    test(`${path} declares exactly one canonical → ${href}`, async ({ page }) => {
-      await page.goto(path)
-      const links = page.locator('link[rel="canonical"]')
-      await expect(links).toHaveCount(1)
-      await expect(links).toHaveAttribute('href', href)
+test.describe('seo · per-page surface in raw HTML (no JS)', () => {
+  for (const c of SEO_CASES) {
+    test(`${c.path}`, async ({ request }) => {
+      const res = await request.get(c.path)
+      expect(res.ok(), `${c.path} did not 200`).toBe(true)
+      const body = await res.text()
+
+      // Title.
+      const title = pickTag(body, /<title>([^<]+)<\/title>/)
+      expect(title, `${c.path} title`).toBe(c.expectedTitle)
+
+      // Exactly one canonical link with the right href.
+      const canonicals = [...body.matchAll(/<link rel="canonical" href="([^"]+)">/g)]
+      expect(canonicals.length, `${c.path} canonical count`).toBe(1)
+      expect(canonicals[0]?.[1]).toBe(c.expectedCanonical)
+
+      // OG and Twitter mirror the canonical URL + title.
+      expect(body).toContain(`<meta property="og:url" content="${c.expectedCanonical}">`)
+      expect(body).toContain(`<meta property="og:title" content="${c.expectedTitle}">`)
+      expect(body).toContain('<meta property="og:type" content="article">')
+      expect(body).toContain('<meta name="twitter:card" content="summary_large_image">')
+      expect(body).toContain(`<meta name="twitter:title" content="${c.expectedTitle}">`)
+
+      // Meta description present (specific text varies per tick — assert
+      // the tag is present and non-empty; per-tick tests cover content).
+      const description = pickTag(body, /<meta name="description" content="([^"]+)">/)
+      expect(description).toBeTruthy()
+      expect(description?.length).toBeGreaterThan(20)
+
+      if (c.descriptionContains) {
+        expect(description).toContain(c.descriptionContains)
+      }
     })
   }
 })
+
+test.describe('seo · prerendered body in raw HTML', () => {
+  test('/ticks/lone-star-tick body contains the H1 and disease links without JS', async ({ request }) => {
+    const res = await request.get('/ticks/lone-star-tick')
+    const body = await res.text()
+    // The H1 lands in raw HTML — the SSR prerender replaces #root with
+    // the rendered React tree, so view-source matches what crawlers
+    // index.
+    expect(body).toMatch(/<h1[^>]*>Lone star tick<\/h1>/i)
+    // Internal links to disease pages — every disease the tick carries
+    // ships as a link in the static HTML.
+    expect(body).toMatch(/href="\/diseases\/alpha-gal-syndrome"/)
+  })
+
+  test('/ticks/lone-star-tick inlines the SSR data cache for hydration', async ({ request }) => {
+    const res = await request.get('/ticks/lone-star-tick')
+    const body = await res.text()
+    expect(body).toContain('window.__TICKPEDIA_DATA__=')
+    expect(body).toContain('"tick:lone-star-tick"')
+  })
+})
+
+function pickTag(body: string, pattern: RegExp): string | null {
+  const m = body.match(pattern)
+  return m?.[1] ?? null
+}

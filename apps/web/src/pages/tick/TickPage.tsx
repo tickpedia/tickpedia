@@ -1,11 +1,11 @@
 import { PageHeader, Crumb, useDocumentHead } from '../shared/index.js'
-import { pathFor } from '../../routes/index.js'
 import { useTick } from './data/useTick.js'
 import { useTickRange } from './data/useTickRange.js'
 import { useTickDiseases } from './data/useTickDiseases.js'
 import { HeroSection } from './sections/HeroSection.js'
 import { RangeSection } from './sections/RangeSection.js'
 import { DiseasesSection } from './sections/DiseasesSection.js'
+import { buildTickHead } from './seo.js'
 
 // /ticks/[slug] — the canonical tick encyclopedia page. Composes the
 // hero, the range section, and the diseases-it-carries table from
@@ -23,16 +23,16 @@ export function TickPage({ slug }: TickPageProps) {
   const range = useTickRange(tickId)
   const diseases = useTickDiseases(tickId)
 
-  const title = tick
-    ? `${tick.commonName} — Ticks | Tickpedia`
+  const head = tick
+    ? buildTickHead(tick)
     : status === 'not-found'
-      ? 'Tick not found | Tickpedia'
-      : 'Loading… | Tickpedia'
+      ? { title: 'Tick not found | Tickpedia', description: '', canonicalPath: `/ticks/${slug}` }
+      : { title: 'Loading… | Tickpedia', description: '', canonicalPath: `/ticks/${slug}` }
 
   useDocumentHead({
-    title,
-    canonicalPath: pathFor('tick', { slug }),
-    ...(tick?.oneLiner ? { description: tick.oneLiner } : {}),
+    title: head.title,
+    canonicalPath: head.canonicalPath,
+    ...(head.description ? { description: head.description } : {}),
   })
 
   if (status === 'loading') {
@@ -46,7 +46,7 @@ export function TickPage({ slug }: TickPageProps) {
   }
 
   const establishedCounties = range.data
-    ? [...range.data.byStateFips.values()].reduce((a, b) => a + b, 0)
+    ? Object.values(range.data.byStateFips).reduce((a, b) => a + b, 0)
     : null
   const diseaseCount = diseases.loading ? null : diseases.rows.length
 

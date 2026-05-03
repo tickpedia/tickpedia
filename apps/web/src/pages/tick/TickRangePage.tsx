@@ -39,9 +39,9 @@ export function TickRangePage({ slug }: TickRangePageProps) {
   }
 
   const totalEstablished = range.data
-    ? [...range.data.byStateFips.values()].reduce((a, b) => a + b, 0)
+    ? Object.values(range.data.byStateFips).reduce((a, b) => a + b, 0)
     : null
-  const stateCount = range.data?.byStateFips.size ?? null
+  const stateCount = range.data ? Object.keys(range.data.byStateFips).length : null
   const latestYear = range.data?.spread.at(-1)
   const previousYear = range.data?.spread.at(-2)
   const yoyDelta =
@@ -185,7 +185,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 function fipsToData(data: ReturnType<typeof useTickRange>['data']): Record<string, number> {
   if (!data) return {}
   const out: Record<string, number> = {}
-  for (const [fips, count] of data.byStateFips) {
+  for (const [fips, count] of Object.entries(data.byStateFips)) {
     const code = USPS_BY_FIPS[fips]
     if (code) out[code] = count
   }

@@ -14,9 +14,17 @@ import { PageHeader } from './pages/shared/index.js'
 //
 // `/design` stays special-cased on top so the design showcase is
 // reachable without going through the URL contract.
+//
+// `pathOverride` lets the SSR prerender pass the path explicitly
+// (server has no `window`). On the client it stays undefined; the
+// hook reads `window.location.pathname` and listens to `popstate`.
 
-export function App() {
-  const path = useLocationPath()
+export interface AppProps {
+  pathOverride?: string
+}
+
+export function App({ pathOverride }: AppProps = {}) {
+  const path = useLocationPath(pathOverride)
   if (path === '/design' || path === '/design/') return <DesignShowcase />
 
   const matched = matchRoute(path)
@@ -38,10 +46,11 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
   return <LegacyHome currentPath={path} />
 }
 
-function useLocationPath(): string {
-  const [path, setPath] = useState(() =>
-    typeof window === 'undefined' ? '/' : window.location.pathname,
-  )
+function useLocationPath(override?: string): string {
+  const [path, setPath] = useState(() => {
+    if (override !== undefined) return override
+    return typeof window === 'undefined' ? '/' : window.location.pathname
+  })
   useEffect(() => {
     if (typeof window === 'undefined') return
     const onPop = () => setPath(window.location.pathname)

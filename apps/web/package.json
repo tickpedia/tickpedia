@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && pnpm build:aliases && pnpm build:fallback && pnpm build:sitemap",
+    "build": "tsc -b && vite build && pnpm build:ssr && pnpm build:prerender && pnpm build:aliases && pnpm build:fallback && pnpm build:sitemap",
+    "build:ssr": "vite build --ssr src/entry-server.tsx --outDir dist-ssr --emptyOutDir",
+    "build:prerender": "tsx scripts/prerender.ts",
     "build:aliases": "tsx scripts/emit-alias-stubs.ts",
     "build:fallback": "tsx scripts/copy-spa-fallback.ts",
     "build:sitemap": "tsx scripts/generate-sitemap.ts",

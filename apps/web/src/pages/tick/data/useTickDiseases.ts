@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { beam } from '../../../lib/beam.js'
+import { useSSRData } from '../../../ssr/SSRDataProvider.js'
+import { tickDiseasesCacheKey } from './cache-keys.js'
 
-// Loads "diseases this tick carries". Joins three reads:
+export { tickDiseasesCacheKey } from './cache-keys.js'
+
+// Loads "diseases this tick carries". Joins two reads:
 //   1. tickDiseases.query({where: {tickId}}) → list of diseaseIds
 //   2. diseases.query({fields: [id, slug, displayName, oneLiner]}) →
 //      metadata for every disease (small table, fetch once)
-//   3. tickCounty.analyze.establishedRange? — not needed here
 //
-// Returns a row per disease the tick carries, joined to its
-// metadata. Caller renders the table.
+// SSR-aware: when the SSRDataProvider has `tickDiseases:<id>` the
+// hook returns the prefetched rows synchronously and skips the
+// network round-trip.
 
 export interface TickDiseaseRow {
   id: number
@@ -24,17 +28,24 @@ export interface UseTickDiseasesResult {
 }
 
 export function useTickDiseases(tickId: number | null): UseTickDiseasesResult {
-  const [state, setState] = useState<UseTickDiseasesResult>({
-    rows: [],
-    loading: true,
-    error: null,
-  })
+  const initial = useSSRData<TickDiseaseRow[]>(
+    tickId !== null ? tickDiseasesCacheKey(tickId) : '',
+  )
+  const [state, setState] = useState<UseTickDiseasesResult>(() =>
+    initial
+      ? { rows: initial, loading: false, error: null }
+      : { rows: [], loading: true, error: null },
+  )
+  const resolvedForRef = useRef<number | null>(initial && tickId !== null ? tickId : null)
 
   useEffect(() => {
     if (tickId === null) {
+      resolvedForRef.current = null
       setState({ rows: [], loading: true, error: null })
       return
     }
+    if (resolvedForRef.current === tickId) return
+
     let cancelled = false
     setState({ rows: [], loading: true, error: null })
 
@@ -61,6 +72,7 @@ export function useTickDiseases(tickId: number | null): UseTickDiseasesResult {
             oneLiner: d.oneLiner ?? null,
           }))
           .sort((a, b) => a.displayName.localeCompare(b.displayName))
+        resolvedForRef.current = tickId
         setState({ rows, loading: false, error: null })
       })
       .catch((err: unknown) => {

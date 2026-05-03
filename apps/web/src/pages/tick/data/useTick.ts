@@ -1,9 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { beam } from '../../../lib/beam.js'
+import { useSSRData } from '../../../ssr/SSRDataProvider.js'
+import { tickCacheKey } from './cache-keys.js'
+
+export { tickCacheKey } from './cache-keys.js'
 
 // Loads a single tick by slug. Returns the row plus a discriminated
 // status — 'ok' | 'not-found' | 'error' — so the caller renders the
 // right state without juggling null vs undefined vs error.
+//
+// SSR-aware: when a prefetched row is in the SSRDataProvider under
+// `tick:<slug>` the hook starts in the 'ok' state and skips the
+// fetch. On SPA navigation to a different slug the cache miss
+// triggers the standard fetch path.
 
 export type TickStatus = 'loading' | 'ok' | 'not-found' | 'error'
 
@@ -27,13 +36,17 @@ export interface UseTickResult {
 }
 
 export function useTick(slug: string): UseTickResult {
-  const [state, setState] = useState<UseTickResult>({
-    tick: null,
-    status: 'loading',
-    error: null,
-  })
+  const initial = useSSRData<TickRow>(tickCacheKey(slug))
+  const [state, setState] = useState<UseTickResult>(() =>
+    initial
+      ? { tick: initial, status: 'ok', error: null }
+      : { tick: null, status: 'loading', error: null },
+  )
+  const resolvedForRef = useRef<string | null>(initial ? slug : null)
 
   useEffect(() => {
+    if (resolvedForRef.current === slug) return
+
     let cancelled = false
     setState({ tick: null, status: 'loading', error: null })
 
@@ -58,9 +71,11 @@ export function useTick(slug: string): UseTickResult {
         if (cancelled) return
         const row = res.rows[0] as TickRow | undefined
         if (!row) {
+          resolvedForRef.current = slug
           setState({ tick: null, status: 'not-found', error: null })
           return
         }
+        resolvedForRef.current = slug
         setState({ tick: row, status: 'ok', error: null })
       })
       .catch((err: unknown) => {
