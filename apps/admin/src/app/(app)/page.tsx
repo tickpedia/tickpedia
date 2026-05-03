@@ -317,7 +317,9 @@ export default async function Dashboard() {
             </tr>
             <tr>
               <td>
-                <strong>Pathogens</strong>
+                <Link href={'/content/pathogens' as Route}>
+                  <strong>Pathogens</strong>
+                </Link>
               </td>
               <td style={{ textAlign: 'right' }}>{coverage.pathogens}</td>
               <td>

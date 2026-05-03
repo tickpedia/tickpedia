@@ -57,6 +57,7 @@ const NAV: NavSection[] = [
     items: [
       { href: '/import/json/ticks', label: 'Ticks' },
       { href: '/import/json/diseases', label: 'Diseases' },
+      { href: '/import/json/pathogens', label: 'Pathogens' },
       { href: '/import/json/facts', label: 'Wild facts' },
       { href: '/import/json/techniques', label: 'Removal techniques' },
     ],
@@ -66,6 +67,7 @@ const NAV: NavSection[] = [
     items: [
       { href: '/content/ticks', label: 'Ticks' },
       { href: '/content/diseases', label: 'Diseases' },
+      { href: '/content/pathogens', label: 'Pathogens' },
       { href: '/content/facts', label: 'Wild facts' },
       { href: '/content/techniques', label: 'Removal techniques' },
     ],
