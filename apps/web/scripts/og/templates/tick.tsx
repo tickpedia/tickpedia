@@ -3,25 +3,35 @@ import { OG_COLORS } from '../colors.js'
 import { Frame } from '../layout/Frame.js'
 import { Eyebrow } from '../layout/Eyebrow.js'
 import { Chip } from '../layout/Chip.js'
+import { TickCrestImg } from '../layout/TickCrestImg.js'
 import { clamp2Lines } from './text-clamp.js'
 
 // /og/ticks/<slug>.png — the field-guide entry's social card.
-// Mirrors the live page hero: eyebrow ("TICK · IXODIDAE"), H1
-// (common name), italic scientific name, one-liner truncated to two
-// lines, then chip rail.
+// Mirrors the live page hero: tick crest (PNG-data-url, pre-
+// rasterised from the @tickpedia/ui tick SVG with the per-tick hero
+// colours) on the left, and the editorial column on the right
+// (eyebrow, H1, italic scientific name, one-liner, chip rail).
 //
-// The live hero pairs a tick crest (TickCrest from @tickpedia/ui) on
-// the left. satori can't render that asset's ring text reliably, so
-// the OG version skips the crest and lets the typography breathe —
-// readers scan the social card for ~1 second; the image is chaff.
+// The original step 08 spec (§C1) called for ring text on the crest;
+// satori doesn't path-attach text reliably, so the OG version drops
+// the ring text in favour of the silhouette. The bare illustration
+// reads instantly at OG resolution; ring text would not.
 
-const ROW: CSSProperties = {
+const TWO_COL: CSSProperties = {
   width: '100%',
   height: '100%',
   display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 36,
   paddingRight: 220, // leave room for the bottom-right wordmark
+}
+
+const TEXT_COL: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  minWidth: 0,
 }
 
 const TITLE_STYLE: CSSProperties = {
@@ -64,6 +74,12 @@ const CHIP_ROW: CSSProperties = {
 
 export type TickDanger = 'high' | 'mod' | 'low' | null
 
+export interface TickHeroColors {
+  headColor: string | null
+  bodyColor: string | null
+  legColor: string | null
+}
+
 export interface TickTemplateInput {
   commonName: string
   scientificName: string
@@ -71,6 +87,7 @@ export interface TickTemplateInput {
   family: string | null
   diseaseCount: number
   danger: TickDanger
+  colors: TickHeroColors
 }
 
 export function TickTemplate({
@@ -80,22 +97,26 @@ export function TickTemplate({
   family,
   diseaseCount,
   danger,
+  colors,
 }: TickTemplateInput) {
   const eyebrow = family
     ? `TICK · ${family.toUpperCase()}`
     : 'TICK · FIELD GUIDE'
   return (
     <Frame>
-      <div style={ROW}>
-        <Eyebrow text={eyebrow} />
-        <div style={TITLE_STYLE}>{commonName}</div>
-        <div style={SCI_STYLE}>{scientificName}</div>
-        {oneLiner && (
-          <div style={ONELINER_STYLE}>{clamp2Lines(oneLiner, 140)}</div>
-        )}
-        <div style={CHIP_ROW}>
-          {danger && <Chip text={dangerLabel(danger)} tone={`danger-${danger}`} />}
-          {diseaseCount > 0 && <Chip text={`${diseaseCount} diseases`} />}
+      <div style={TWO_COL}>
+        <TickCrestImg colors={colors} />
+        <div style={TEXT_COL}>
+          <Eyebrow text={eyebrow} />
+          <div style={TITLE_STYLE}>{commonName}</div>
+          <div style={SCI_STYLE}>{scientificName}</div>
+          {oneLiner && (
+            <div style={ONELINER_STYLE}>{clamp2Lines(oneLiner, 110)}</div>
+          )}
+          <div style={CHIP_ROW}>
+            {danger && <Chip text={dangerLabel(danger)} tone={`danger-${danger}`} />}
+            {diseaseCount > 0 && <Chip text={`${diseaseCount} diseases`} />}
+          </div>
         </div>
       </div>
     </Frame>
@@ -107,6 +128,7 @@ export interface TickRangeTemplateInput {
   scientificName: string
   countyCount: number
   stateCount: number
+  colors: TickHeroColors
 }
 
 export function TickRangeTemplate({
@@ -114,6 +136,7 @@ export function TickRangeTemplate({
   scientificName,
   countyCount,
   stateCount,
+  colors,
 }: TickRangeTemplateInput) {
   const summary =
     countyCount > 0 || stateCount > 0
@@ -121,11 +144,14 @@ export function TickRangeTemplate({
       : 'Reported range across the United States'
   return (
     <Frame>
-      <div style={ROW}>
-        <Eyebrow text={'TICK · RANGE'} />
-        <div style={TITLE_STYLE}>{`${commonName} range`}</div>
-        <div style={SCI_STYLE}>{scientificName}</div>
-        <div style={{ ...ONELINER_STYLE, marginTop: 28 }}>{summary}</div>
+      <div style={TWO_COL}>
+        <TickCrestImg colors={colors} />
+        <div style={TEXT_COL}>
+          <Eyebrow text={'TICK · RANGE'} />
+          <div style={TITLE_STYLE}>{`${commonName} range`}</div>
+          <div style={SCI_STYLE}>{scientificName}</div>
+          <div style={{ ...ONELINER_STYLE, marginTop: 28 }}>{summary}</div>
+        </div>
       </div>
     </Frame>
   )

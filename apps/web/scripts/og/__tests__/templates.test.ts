@@ -57,39 +57,50 @@ describe('OG templates render expected content', () => {
     expect(text).toContain('50 states')
   }, 15000)
 
-  it('tick template renders common name + scientific + chip', async () => {
-    const text = textOf(
-      await svg(
-        TickTemplate({
-          commonName: 'Lone star tick',
-          scientificName: 'Amblyomma americanum',
-          oneLiner: 'Aggressive biter; the alpha-gal vector.',
-          family: 'Ixodidae',
-          diseaseCount: 7,
-          danger: 'high',
-        }),
-      ),
+  const SAMPLE_TICK_COLORS = {
+    headColor: '#3a2a1a',
+    bodyColor: '#7a4a2a',
+    legColor: '#2a1a10',
+  }
+
+  it('tick template renders common name + scientific + chip + crest image', async () => {
+    const out = await svg(
+      TickTemplate({
+        commonName: 'Lone star tick',
+        scientificName: 'Amblyomma americanum',
+        oneLiner: 'Aggressive biter; the alpha-gal vector.',
+        family: 'Ixodidae',
+        diseaseCount: 7,
+        danger: 'high',
+        colors: SAMPLE_TICK_COLORS,
+      }),
     )
+    const text = textOf(out)
     expect(text).toContain('Lone star tick')
     expect(text).toContain('Amblyomma americanum')
     expect(text).toContain('7 diseases')
     expect(text).toContain('High danger')
+    // The crest is embedded as a PNG data URL inside an <image>/<img>.
+    // satori's SVG output uses href="data:image/png;base64,..." for
+    // <img> children — assert it lands in the document.
+    expect(out).toMatch(/href="data:image\/png;base64,[A-Za-z0-9+/=]+"/)
   }, 15000)
 
-  it('tick range template carries county + state counts', async () => {
-    const text = textOf(
-      await svg(
-        TickRangeTemplate({
-          commonName: 'Lone star tick',
-          scientificName: 'Amblyomma americanum',
-          countyCount: 1070,
-          stateCount: 34,
-        }),
-      ),
+  it('tick range template carries county + state counts + crest image', async () => {
+    const out = await svg(
+      TickRangeTemplate({
+        commonName: 'Lone star tick',
+        scientificName: 'Amblyomma americanum',
+        countyCount: 1070,
+        stateCount: 34,
+        colors: SAMPLE_TICK_COLORS,
+      }),
     )
+    const text = textOf(out)
     expect(text).toContain('Lone star tick range')
     expect(text).toContain('1,070 counties')
     expect(text).toContain('34 states')
+    expect(out).toMatch(/href="data:image\/png;base64,[A-Za-z0-9+/=]+"/)
   }, 15000)
 
   it('disease template renders display name + cases', async () => {

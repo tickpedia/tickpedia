@@ -72,6 +72,9 @@ interface TickRowMin {
   scientificName: string
   oneLiner: string | null
   dangerLevel: 'low' | 'medium' | 'high' | null
+  heroHeadColor: string | null
+  heroBodyColor: string | null
+  heroLegColor: string | null
 }
 interface DiseaseRowMin {
   id: number
@@ -349,6 +352,11 @@ function jobForUrl(
         family: null,
         diseaseCount: ctx.tickDiseaseCounts.get(t.id) ?? 0,
         danger: dangerOf(t.dangerLevel),
+        colors: {
+          headColor: t.heroHeadColor,
+          bodyColor: t.heroBodyColor,
+          legColor: t.heroLegColor,
+        },
       }))
     }
     case 'tick-range': {
@@ -360,6 +368,11 @@ function jobForUrl(
         scientificName: t.scientificName,
         countyCount: stats.counties,
         stateCount: stats.states,
+        colors: {
+          headColor: t.heroHeadColor,
+          bodyColor: t.heroBodyColor,
+          legColor: t.heroLegColor,
+        },
       }))
     }
     case 'tick-diseases': {
@@ -510,7 +523,17 @@ function jobForUrl(
 
 async function fetchTicks(client: BeamClient): Promise<TickRowMin[]> {
   const res = (await client.query('ticks', {
-    fields: ['id', 'slug', 'commonName', 'scientificName', 'oneLiner', 'dangerLevel'],
+    fields: [
+      'id',
+      'slug',
+      'commonName',
+      'scientificName',
+      'oneLiner',
+      'dangerLevel',
+      'heroHeadColor',
+      'heroBodyColor',
+      'heroLegColor',
+    ],
     limit: 200,
   })) as QueryResponse<TickRowMin>
   return res.rows.filter((r) => r.slug)
