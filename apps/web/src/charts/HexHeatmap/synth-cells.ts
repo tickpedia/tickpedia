@@ -4,7 +4,7 @@
 //
 // Real consumer data comes from `diseaseCountyYear.densityByH3`; the
 // real-data adapter (h3 → projected x/y) lands when the /risk page
-// is built (phase 10).
+// is built.
 
 import { gridDimensions } from './hex-geometry.js'
 

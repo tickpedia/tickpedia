@@ -4,6 +4,7 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { slugify } from '../../normalize.js'
 import { parseFipsFile } from './parse-fips.js'
 import { USPS_BY_FIPS } from './usps-codes.js'
 import { EXTRA_COUNTIES } from './extra-counties.js'
@@ -11,7 +12,8 @@ import { EXTRA_COUNTIES } from './extra-counties.js'
 export interface SeedState {
   fips: string // '25'
   code: string // 'MA' (USPS, uppercase, canonical)
-  slug: string // 'ma' (lowercase USPS — URL form)
+  slug: string // 'massachusetts' (full name, slugified — URL form;
+  //              "maine" gets ~50× the search volume of "me")
   name: string // 'Massachusetts' (title-cased from FCC's UPPERCASE)
 }
 
@@ -40,11 +42,12 @@ export function loadLocations(): { states: SeedState[]; counties: SeedCounty[] }
   for (const s of states) {
     const code = USPS_BY_FIPS[s.fips]
     if (!code) continue // territory we haven't mapped yet — skip silently
+    const name = titleCase(s.rawName)
     seedStates.push({
       fips: s.fips,
       code,
-      slug: code.toLowerCase(),
-      name: titleCase(s.rawName),
+      slug: slugify(name),
+      name,
     })
   }
 

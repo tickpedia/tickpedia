@@ -2,11 +2,10 @@ import { SearchBox } from './components/SearchBox'
 import { Feed } from './components/Feed'
 import { DesignShowcase } from './design/index.js'
 
-// Phase-1 router shim: while the URL contract scaffolding lands in
-// phase 3, dispatch on `window.location.pathname` so the design system
-// has a stable review URL (`/design`) without dragging in react-router
-// yet. The legacy home stays at `/` so existing tests + the user's
-// running dev server keep working.
+// Pathname router shim: dispatches on `window.location.pathname` so
+// the design system has a stable review URL (`/design`) without
+// dragging in react-router yet. The legacy home stays at `/` until
+// the real home page lands.
 
 export function App() {
   const path = typeof window === 'undefined' ? '/' : window.location.pathname

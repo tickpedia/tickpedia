@@ -7,7 +7,8 @@
 //
 // Slug rules + alias-redirects live with their respective entities:
 //   - aliases:   `apps/web/src/aliases.ts`
-//   - slug rules: `plan/steps/05_design_handoff_and_urls.md` § B2
+//   - slug rules: human-English common name primary; scientific name
+//     and USPS / FIPS codes redirect via aliases.ts
 //
 // `:slug` tokens map to entity slugs queried from SemiLayer at smoke
 // time. `:state` is the state slug for nested county URLs (the only

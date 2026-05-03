@@ -3,13 +3,15 @@
 //
 // Geography model: US → State → County.
 //
-//   states         keyed by 2-char FIPS ('25'); slug = lowercase USPS code ('ma')
+//   states         keyed by 2-char FIPS ('25'); slug = full name slugified
+//                  ('massachusetts', 'north-carolina', 'district-of-columbia') —
+//                  USPS-code aliases (`/states/ma`) redirect via aliases.ts
 //   counties       keyed by 5-char FIPS ('25009'); slug strips ' County',
 //                  ' Borough', etc. and is unique within a state
 //
-// URL shape (when routes get drawn):
-//   /us/<state-slug>                e.g. /us/ma
-//   /us/<state-slug>/<county-slug>  e.g. /us/ma/essex
+// URL shape:
+//   /states/<state-slug>                       e.g. /states/massachusetts
+//   /counties/<state-slug>/<county-slug>       e.g. /counties/massachusetts/essex
 //
 // Surveillance counts (CDC) live in disease_county_year + disease_month.
 // Tick presence by county lives in tick_county (CDC ArboNET-style).
@@ -64,8 +66,8 @@ export const states = pgTable(
   'states',
   {
     fips: text('fips').primaryKey(), // '25'
-    code: text('code').notNull(), // 'MA' (USPS, uppercase)
-    slug: text('slug').notNull(), // 'ma' (lowercase USPS — URL form)
+    code: text('code').notNull(), // 'MA' (USPS, uppercase — alias only)
+    slug: text('slug').notNull(), // 'massachusetts' (full name slugified — URL canonical)
     name: text('name').notNull(), // 'Massachusetts'
   },
   (t) => ({

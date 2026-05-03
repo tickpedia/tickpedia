@@ -20,7 +20,9 @@ Working agreement between humans and coding agents on the Tickpedia repo.
   `.env` (Neon). `pnpm db:setup:local` injects a localhost URL via
   `cross-env` so you don't need to swap `.env` to bounce between them.
 - **Geography** is `US → State → County` keyed on FIPS codes.
-  - `states` PK = 2-char FIPS (`'25'`), slug = lowercase USPS (`'ma'`).
+  - `states` PK = 2-char FIPS (`'25'`), slug = full name slugified
+    (`'massachusetts'`, `'north-carolina'`, `'district-of-columbia'`).
+    USPS-code aliases (`/states/ma`) live in `apps/web/src/aliases.ts`.
   - `counties` PK = 5-char FIPS (`'25009'`), slug = name minus
     " County / Parish / Borough / Census Area / Municipality / City and
     Borough" (preserves the lowercase `' city'` marker for Virginia /

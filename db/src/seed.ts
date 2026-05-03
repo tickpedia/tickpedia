@@ -45,7 +45,19 @@ const db = connect(url)
 const { states: seedStates, counties: seedCounties } = loadLocations()
 
 if (seedStates.length > 0) {
-  await db.insert(states).values(seedStates).onConflictDoNothing({ target: states.fips })
+  // Upsert (not DoNothing) so a slug rule change re-seeds cleanly
+  // without manual intervention.
+  await db
+    .insert(states)
+    .values(seedStates)
+    .onConflictDoUpdate({
+      target: states.fips,
+      set: {
+        code: sql`EXCLUDED.code`,
+        slug: sql`EXCLUDED.slug`,
+        name: sql`EXCLUDED.name`,
+      },
+    })
 }
 console.log(`states: ${seedStates.length} rows`)
 

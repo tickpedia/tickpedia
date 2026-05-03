@@ -41,7 +41,7 @@ describe('ALIASES', () => {
     }
   })
 
-  it('contains at least the ticks → common-name canonical aliases (Section B4 minimum)', () => {
+  it('contains at least the v1 alias set (scientific names, USPS / FIPS codes, /learn landings)', () => {
     const expectedFroms = [
       '/ticks/ixodes-scapularis',
       '/ticks/deer-tick',

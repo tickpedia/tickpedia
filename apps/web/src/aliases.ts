@@ -1,6 +1,7 @@
 // Alias-redirect table — every URL we want to absorb that isn't the
-// canonical one. Built once at v1 from `plan/steps/05_design_handoff_and_urls.md`
-// § B4; growing the list later is fine.
+// canonical one. Pattern: scientific names, alternate clinical names,
+// USPS / FIPS codes, and high-intent search-phrase landings all
+// redirect to a canonical entity page. Growing the list later is fine.
 //
 // At build time, `scripts/emit-alias-stubs.ts` walks this table and
 // emits `dist/<from>/index.html` for each entry — a tiny stub

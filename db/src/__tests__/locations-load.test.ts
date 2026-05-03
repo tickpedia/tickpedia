@@ -12,7 +12,9 @@ describe('loadLocations (real FCC data)', () => {
     for (const s of states) {
       expect(s.fips).toMatch(/^\d{2}$/)
       expect(s.code).toMatch(/^[A-Z]{2}$/)
-      expect(s.slug).toBe(s.code.toLowerCase())
+      // Slug is the lowercased / hyphenated full name per the URL
+      // contract — full-name slugs win on search volume vs USPS codes.
+      expect(s.slug).toBe(s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
       expect(s.name.length).toBeGreaterThan(1)
       expect(s.name).not.toBe(s.name.toUpperCase()) // got title-cased
     }
@@ -20,13 +22,23 @@ describe('loadLocations (real FCC data)', () => {
 
   it('includes Massachusetts with the right metadata', () => {
     const ma = states.find((s) => s.fips === '25')
-    expect(ma).toEqual({ fips: '25', code: 'MA', slug: 'ma', name: 'Massachusetts' })
+    expect(ma).toEqual({ fips: '25', code: 'MA', slug: 'massachusetts', name: 'Massachusetts' })
   })
 
-  it('includes DC', () => {
+  it('includes DC with a hyphenated full-name slug', () => {
     const dc = states.find((s) => s.fips === '11')
     expect(dc?.code).toBe('DC')
-    expect(dc?.slug).toBe('dc')
+    expect(dc?.slug).toBe('district-of-columbia')
+    expect(dc?.name).toBe('District of Columbia')
+  })
+
+  it('multi-word state names slugify to hyphenated form', () => {
+    const nc = states.find((s) => s.fips === '37')
+    expect(nc?.slug).toBe('north-carolina')
+    const ny = states.find((s) => s.fips === '36')
+    expect(ny?.slug).toBe('new-york')
+    const ri = states.find((s) => s.fips === '44')
+    expect(ri?.slug).toBe('rhode-island')
   })
 
   it('loads thousands of counties (US has ~3,140)', () => {

@@ -51,8 +51,10 @@ describe('URL_PATTERNS', () => {
     expect(ALL_KINDS).toEqual(URL_PATTERNS.map((p) => p.kind))
   })
 
-  it('covers every URL listed in the contract (Section B1)', () => {
-    // Verbatim from plan/steps/05_design_handoff_and_urls.md § B1.
+  it('covers every URL the site promises', () => {
+    // The complete URL set this codebase is committing to. Anything
+    // here is a public, indefinite contract; removing or renaming a
+    // path means shipping an alias-redirect for the old form.
     const expected = [
       '/',
       '/ticks',
