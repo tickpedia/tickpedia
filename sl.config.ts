@@ -558,10 +558,17 @@ export default defineConfig({
           precompute: { onlyAdditive: true, refreshInterval: '15m' },
         },
         // Top 100 counties by cumulative case count, any disease.
-        // "Worst tick counties in America" leaderboard.
+        // "Worst tick counties in America" leaderboard. countyName is
+        // the first dim so chart renderers (donut/bar legend) default
+        // to a human-readable label; countyFips stays as the canonical
+        // identity, stateFips disambiguates same-name counties.
         countyHotspots: {
           candidates: {},
-          dimensions: [{ field: 'countyFips' }],
+          dimensions: [
+            { field: 'countyName', through: 'county' },
+            { field: 'countyFips' },
+            { field: 'stateFips', through: 'county' },
+          ],
           measures: {
             total: { agg: 'sum', column: 'count' },
             mostRecentYear: { agg: 'max', column: 'year' },
