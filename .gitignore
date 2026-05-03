@@ -12,7 +12,12 @@ build/
 out/
 *.tsbuildinfo
 
-.claude
+# Claude Code workspace — settings are per-user, but slash commands +
+# anything else under .claude/ are repo-wide so the next agent gets the
+# same surface.
+.claude/settings.local.json
+.claude/cache/
+.claude/logs/
 
 # coverage
 coverage/
