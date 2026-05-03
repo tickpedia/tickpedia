@@ -1,17 +1,49 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-// The App's router shim picks the page off `window.location.pathname`.
-// In jsdom we can navigate by `history.pushState` before each render.
+// The App router shim picks the page off `window.location.pathname`.
+// In jsdom we navigate by `history.pushState` before each render. The
+// mock below provides the surface of `beam` exercised by the home page
+// + the search-box autocomplete; everything is empty/idle.
 
 vi.mock('../lib/beam', () => ({
   beam: {
-    ticks: { search: vi.fn() },
+    ticks: {
+      search: vi.fn().mockResolvedValue({ results: [] }),
+      count: vi.fn().mockResolvedValue({ count: 0 }),
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+    },
+    diseases: {
+      count: vi.fn().mockResolvedValue({ count: 0 }),
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+      feed: {
+        trending: vi.fn().mockResolvedValue({ items: [] }),
+      },
+    },
+    counties: {
+      count: vi.fn().mockResolvedValue({ count: 0 }),
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+    },
+    states: {
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+    },
+    diseaseCountyYear: {
+      count: vi.fn().mockResolvedValue({ count: 0 }),
+      analyze: {
+        densityByH3: vi.fn().mockResolvedValue({ buckets: [] }),
+      },
+    },
+    tickCounty: {
+      feed: {
+        recentlyEstablished: vi.fn().mockResolvedValue({ items: [] }),
+      },
+    },
     wildFacts: {
       feed: {
-        latest: Object.assign(vi.fn().mockResolvedValue({ items: [], cursor: null, evolved: false, meta: {} }), {
-          next: vi.fn(),
-        }),
+        latest: Object.assign(
+          vi.fn().mockResolvedValue({ items: [], cursor: null, evolved: false, meta: {} }),
+          { next: vi.fn() },
+        ),
       },
     },
   },
@@ -37,18 +69,23 @@ describe('App router shim', () => {
     document.documentElement.removeAttribute('data-theme')
   })
 
-  it('renders the legacy home at /', () => {
+  it('renders the home page at /', () => {
     window.history.pushState({}, '', '/')
     render(<App />)
-    expect(screen.getByRole('heading', { level: 1, name: /tickpedia/i })).toBeInTheDocument()
-    expect(screen.getByTestId('tagline')).toBeInTheDocument()
+    expect(screen.getByTestId('home-page')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /ticks, the diseases they carry/i,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('renders the design showcase at /design', () => {
     window.history.pushState({}, '', '/design')
     render(<App />)
     expect(screen.getByTestId('design-showcase')).toBeInTheDocument()
-    expect(screen.queryByTestId('tagline')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('home-page')).not.toBeInTheDocument()
   })
 
   it('also responds at /design/ (trailing slash)', () => {
@@ -57,10 +94,12 @@ describe('App router shim', () => {
     expect(screen.getByTestId('design-showcase')).toBeInTheDocument()
   })
 
-  it('legacy home shows the GitHub repo link in the footer', () => {
-    window.history.pushState({}, '', '/')
+  it('shows the not-found page for unknown URLs', () => {
+    window.history.pushState({}, '', '/no-such-route')
     render(<App />)
-    const link = screen.getByRole('link', { name: /github\.com\/tickpedia\/tickpedia/i })
-    expect(link).toHaveAttribute('href', 'https://github.com/tickpedia/tickpedia')
+    expect(screen.getByTestId('not-found')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 1, name: /not on the map/i }),
+    ).toBeInTheDocument()
   })
 })

@@ -196,11 +196,82 @@ test.describe('seo · JSON-LD on tick pages', () => {
     expect(crumbs?.itemListElement[3]?.name).toBe('Counties')
     expect(crumbs?.itemListElement[4]?.name).toMatch(/cumberland/i)
   })
-  test.skip('home embeds WebSite + SearchAction (Google sitelinks search box)', async () => {
-    /* phase 10 */
+  test('home embeds WebSite + SearchAction (Google sitelinks search box)', async ({ request }) => {
+    const res = await request.get('/')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+
+    const schemas = extractJsonLd(body)
+    const website = schemas.find((s) => s['@type'] === 'WebSite') as
+      | {
+          name: string
+          url: string
+          potentialAction?: {
+            '@type': string
+            target?: { '@type': string; urlTemplate: string }
+            'query-input'?: string
+          }
+        }
+      | undefined
+    expect(website).toBeDefined()
+    expect(website?.name).toBe('Tickpedia')
+    expect(website?.url).toBe('https://tickpedia.com/')
+    expect(website?.potentialAction?.['@type']).toBe('SearchAction')
+    expect(website?.potentialAction?.target?.urlTemplate).toContain(
+      '{search_term_string}',
+    )
+    expect(website?.potentialAction?.['query-input']).toBe(
+      'required name=search_term_string',
+    )
+
+    const crumbs = schemas.find((s) => s['@type'] === 'BreadcrumbList') as
+      | { itemListElement: Array<{ position: number; name: string }> }
+      | undefined
+    expect(crumbs).toBeDefined()
   })
-  test.skip('/risk + /risk/[slug] embed Map schema', async () => {
-    /* phase 10 */
+
+  test('/risk embeds a Map schema', async ({ request }) => {
+    const res = await request.get('/risk')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+    const schemas = extractJsonLd(body)
+    const map = schemas.find((s) => s['@type'] === 'Map') as
+      | { name: string; url: string; mapType: string; about?: unknown }
+      | undefined
+    expect(map).toBeDefined()
+    expect(map?.url).toBe('https://tickpedia.com/risk')
+    expect(map?.mapType).toBe('https://schema.org/VenueMap')
+    expect(map?.about).toBeUndefined()
+  })
+
+  test('/risk/[slug] embeds a Map schema with a MedicalCondition `about`', async ({ request }) => {
+    const res = await request.get('/risk/lyme-disease')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+    const schemas = extractJsonLd(body)
+    const map = schemas.find((s) => s['@type'] === 'Map') as
+      | {
+          url: string
+          about?: { '@type': string; name: string; url: string }
+        }
+      | undefined
+    expect(map).toBeDefined()
+    expect(map?.url).toBe('https://tickpedia.com/risk/lyme-disease')
+    expect(map?.about?.['@type']).toBe('MedicalCondition')
+    expect(map?.about?.name).toBe('Lyme disease')
+    expect(map?.about?.url).toBe('https://tickpedia.com/diseases/lyme-disease')
+  })
+
+  test('/season embeds a WebPage schema', async ({ request }) => {
+    const res = await request.get('/season')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+    const schemas = extractJsonLd(body)
+    const webpage = schemas.find((s) => s['@type'] === 'WebPage') as
+      | { name: string; url: string }
+      | undefined
+    expect(webpage).toBeDefined()
+    expect(webpage?.url).toBe('https://tickpedia.com/season')
   })
 })
 

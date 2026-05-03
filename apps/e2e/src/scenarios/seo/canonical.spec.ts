@@ -97,6 +97,29 @@ const SEO_CASES: ReadonlyArray<SeoCase> = [
     expectedTitle: 'Wild facts — Tickpedia',
     expectedCanonical: 'https://tickpedia.com/facts',
   },
+  {
+    path: '/',
+    expectedTitle:
+      'Tickpedia — ticks, the diseases they carry, and the data behind every claim',
+    expectedCanonical: 'https://tickpedia.com/',
+  },
+  {
+    path: '/risk',
+    expectedTitle: 'Tick-borne disease risk map — Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/risk',
+  },
+  {
+    // /risk/[slug] consolidates PageRank back to /risk per the URL
+    // contract — the page self-titles for SERP relevance though.
+    path: '/risk/lyme-disease',
+    expectedTitle: 'Lyme disease risk map — Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/risk',
+  },
+  {
+    path: '/season',
+    expectedTitle: 'When is tick season? — Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/season',
+  },
 ]
 
 test.describe('seo · per-page surface in raw HTML (no JS)', () => {

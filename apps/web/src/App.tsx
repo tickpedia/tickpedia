@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { SearchBox } from './components/SearchBox'
-import { Feed } from './components/Feed'
 import { DesignShowcase } from './design/index.js'
 import { matchRoute, type MatchedRoute } from './routes/index.js'
+import { HomePage } from './pages/home/HomePage.js'
+import { RiskPage } from './pages/risk/RiskPage.js'
+import { RiskDiseasePage } from './pages/risk/RiskDiseasePage.js'
+import { SeasonPage } from './pages/season/SeasonPage.js'
 import { TickPage } from './pages/tick/TickPage.js'
 import { TickRangePage } from './pages/tick/TickRangePage.js'
 import { DiseasesIndexPage } from './pages/disease/DiseasesIndexPage.js'
@@ -27,6 +29,7 @@ import { AboutPage } from './pages/meta/AboutPage.js'
 import { SourcesPage } from './pages/meta/SourcesPage.js'
 import { ContributePage } from './pages/meta/ContributePage.js'
 import { PageHeader, Footer } from './pages/shared/index.js'
+import { SearchBox } from './components/SearchBox.js'
 
 // Pathname-driven router. SPA — every path lives in one bundle, the
 // router below picks the page off `window.location.pathname` and the
@@ -54,6 +57,12 @@ export function App({ pathOverride }: AppProps = {}) {
 
 function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | null }) {
   if (matched) {
+    if (matched.kind === 'home') return <HomePage />
+    if (matched.kind === 'risk') return <RiskPage />
+    if (matched.kind === 'risk-disease' && matched.params.slug) {
+      return <RiskDiseasePage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'season') return <SeasonPage />
     if (matched.kind === 'tick' && matched.params.slug) {
       return <TickPage slug={matched.params.slug} />
     }
@@ -108,10 +117,45 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     if (matched.kind === 'sources') return <SourcesPage />
     if (matched.kind === 'contribute') return <ContributePage />
   }
-  // Everything else falls back to the legacy home until its real page
-  // ships. The path is shown so the URL is still useful while pages
-  // are being built out.
-  return <LegacyHome currentPath={path} />
+  // Unmatched URL — show a "not found" panel that still surfaces a
+  // search box so the user can pivot. The previous LegacyHome stub
+  // doubled as the fallback; now that the real HomePage owns `/`, the
+  // fallback is its own thing.
+  return <NotFound currentPath={path} />
+}
+
+function NotFound({ currentPath }: { currentPath: string }) {
+  return (
+    <div className="tp-page" data-testid="not-found">
+      <PageHeader />
+      <section style={{ padding: '64px 32px 28px' }}>
+        <div className="ui eyebrow">404</div>
+        <h1
+          className="tp-serif"
+          style={{
+            fontSize: 'clamp(40px, 6vw, 64px)',
+            lineHeight: 1.02,
+            letterSpacing: '-0.025em',
+            margin: '8px 0 12px',
+          }}
+        >
+          Not on the map.
+        </h1>
+        <p
+          className="tp-serif"
+          style={{ fontSize: 18, color: 'var(--ink-2)', maxWidth: 560 }}
+        >
+          <code className="mono">{currentPath}</code> isn't a route we
+          recognize. Try the search, or head back to{' '}
+          <a href="/">Tickpedia home</a>.
+        </p>
+        <div style={{ marginTop: 24, maxWidth: 560 }}>
+          <SearchBox />
+        </div>
+      </section>
+      <Footer />
+    </div>
+  )
 }
 
 function useLocationPath(override?: string): string {
@@ -128,118 +172,3 @@ function useLocationPath(override?: string): string {
   return path
 }
 
-// Featured ticks — surface the pages that are actually shipping today
-// so the home isn't a dead end. Order: highest-impact species first.
-const FEATURED_TICKS: ReadonlyArray<{ slug: string; common: string; sci: string }> = [
-  { slug: 'blacklegged-tick',         common: 'Blacklegged tick',         sci: 'Ixodes scapularis' },
-  { slug: 'lone-star-tick',           common: 'Lone star tick',           sci: 'Amblyomma americanum' },
-  { slug: 'american-dog-tick',        common: 'American dog tick',        sci: 'Dermacentor variabilis' },
-  { slug: 'western-blacklegged-tick', common: 'Western blacklegged tick', sci: 'Ixodes pacificus' },
-]
-
-function LegacyHome({ currentPath }: { currentPath: string }) {
-  return (
-    <div className="tp-page" data-testid="home">
-      <PageHeader active="home" />
-
-      <section style={{ padding: '40px 32px 28px' }}>
-        <div className="ui eyebrow">A field guide</div>
-        <h1
-          className="tp-serif"
-          style={{
-            fontSize: 'clamp(40px, 6vw, 64px)',
-            lineHeight: 1.02,
-            letterSpacing: '-0.025em',
-            margin: '8px 0 12px',
-          }}
-        >
-          Tickpedia
-        </h1>
-        <p
-          data-testid="tagline"
-          className="tp-serif"
-          style={{
-            fontSize: 18,
-            color: 'var(--ink-2)',
-            maxWidth: 560,
-            margin: 0,
-          }}
-        >
-          Ticks by region. Wild facts. How to get them off you.
-        </p>
-
-        <div style={{ marginTop: 24, maxWidth: 560 }}>
-          <SearchBox />
-        </div>
-
-        {currentPath !== '/' && (
-          <p
-            className="ui"
-            style={{ color: 'var(--muted)', fontSize: 13, marginTop: 20 }}
-          >
-            Page <code className="mono">{currentPath}</code> hasn’t shipped yet.
-          </p>
-        )}
-      </section>
-
-      <section className="tp-section">
-        <div className="head">
-          <h2 className="tp-serif">Featured ticks</h2>
-          <a className="ui meta" href="/ticks">All ticks →</a>
-        </div>
-        <ul
-          style={{
-            listStyle: 'none',
-            padding: 0,
-            margin: 0,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 12,
-          }}
-        >
-          {FEATURED_TICKS.map((t) => (
-            <li key={t.slug}>
-              <a
-                href={`/ticks/${t.slug}`}
-                className="ui"
-                style={{
-                  display: 'block',
-                  padding: '14px 16px',
-                  border: '1px solid var(--rule)',
-                  background: 'var(--surface)',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                }}
-              >
-                <div className="tp-serif" style={{ fontSize: 17, color: 'var(--ink)' }}>
-                  {t.common}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontFamily: 'var(--mono)',
-                    color: 'var(--muted)',
-                    marginTop: 4,
-                    fontStyle: 'italic',
-                  }}
-                >
-                  {t.sci}
-                </div>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="tp-section">
-        <div className="head">
-          <h2 className="tp-serif">Latest wild facts</h2>
-          <span className="meta">wildFacts.feeds.latest</span>
-        </div>
-        <Feed />
-      </section>
-
-      <Footer />
-    </div>
-  )
-}

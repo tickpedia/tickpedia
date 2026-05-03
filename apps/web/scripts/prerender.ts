@@ -40,6 +40,13 @@ import {
   prefetchFactPage,
   prefetchFactsIndex,
 } from '../src/ssr/prefetch/fact.js'
+import { prefetchHome } from '../src/ssr/prefetch/home.js'
+import {
+  buildRiskPrefetchContext,
+  prefetchRiskIndex,
+  prefetchRiskDiseasePage,
+} from '../src/ssr/prefetch/risk.js'
+import { prefetchSeason } from '../src/ssr/prefetch/season.js'
 import { buildTickRangeHead } from '../src/pages/tick/seo.js'
 import { buildDiseaseSubPageHead } from '../src/pages/disease/seo.js'
 import { buildStateSubPageHead } from '../src/pages/state/seo.js'
@@ -255,11 +262,37 @@ async function main(): Promise<void> {
     written += await emit(template, ssr, `/facts/${slug}`, prefetched.cache, prefetched.head)
   }
 
+  // ── Home ──
+  const home = await prefetchHome(client)
+  written += await emit(template, ssr, '/', home.cache, home.head)
+
+  // ── Risk + risk/[slug] ──
+  const riskCtx = await buildRiskPrefetchContext(client)
+  const riskIndex = await prefetchRiskIndex(client, riskCtx)
+  written += await emit(template, ssr, '/risk', riskIndex.cache, riskIndex.head)
+
+  let riskDiseasesEmitted = 0
+  for (const url of allUrls) {
+    if (url.kind !== 'risk-disease' || !url.slug) continue
+    const prefetched = await prefetchRiskDiseasePage(client, url.slug, riskCtx)
+    if (!prefetched) {
+      skipped += 1
+      continue
+    }
+    written += await emit(template, ssr, `/risk/${url.slug}`, prefetched.cache, prefetched.head)
+    riskDiseasesEmitted += 1
+  }
+
+  // ── Season ──
+  const season = await prefetchSeason(client)
+  written += await emit(template, ssr, '/season', season.cache, season.head)
+
   const tookMs = Date.now() - startedAt
   console.log(
     `✓ prerendered ${written} HTML file${written === 1 ? '' : 's'} ` +
       `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ` +
-      `${stateSlugs.size} states, ${countyKeys.size} counties, ${factSlugs.size} facts, ${skipped} skipped) in ${tookMs}ms`,
+      `${stateSlugs.size} states, ${countyKeys.size} counties, ${factSlugs.size} facts, ` +
+      `${riskDiseasesEmitted} risk-disease, ${skipped} skipped) in ${tookMs}ms`,
   )
 }
 

@@ -414,6 +414,36 @@
   margin-bottom: 14px;
 }
 
+/* ---- Home hero band (text + heatmap) ----
+ * Two-column on desktop, stacks under 880px so the heatmap drops below
+ * the headline. The heatmap canvas itself is intrinsically responsive
+ * via SVG viewBox.
+ */
+.tp-home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 36px;
+  align-items: center;
+}
+.tp-home-hero h1 {
+  font-size: clamp(34px, 5.4vw, 52px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  margin: 8px 0 14px;
+}
+.tp-home-hero .lede {
+  font-size: clamp(16px, 1.8vw, 19px);
+  color: var(--ink-2);
+  line-height: 1.55;
+  max-width: 560px;
+}
+@media (max-width: 880px) {
+  .tp-home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+
 /* ---- Hero band (tick / disease / pathogen page hero) ----
  * Three-column desktop layout (crest · headline · at-a-glance);
  * stacks under 880px so the headline gets the full content width on
