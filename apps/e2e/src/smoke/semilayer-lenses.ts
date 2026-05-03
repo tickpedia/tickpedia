@@ -50,6 +50,17 @@ const LENS_CHECKS: readonly LensCheck[] = [
   { lens: 'tickState', expectedFields: ['id', 'tickId', 'stateFips'], emptyOk: true },
   { lens: 'tickCounty', expectedFields: ['id', 'tickId', 'countyFips', 'year', 'status'] },
   {
+    lens: 'pathogens',
+    expectedFields: ['id', 'slug', 'displayName', 'scientificName'],
+  },
+  {
+    lens: 'pathogenCounty',
+    expectedFields: ['id', 'pathogenId', 'countyFips', 'year', 'status'],
+    // Pathogen ingest is admin-driven; before the first import the
+    // table is empty, but the route + auth still need to work.
+    emptyOk: true,
+  },
+  {
     lens: 'diseaseCountyYear',
     expectedFields: ['id', 'countyFips', 'diseaseId', 'year', 'count'],
   },
@@ -60,6 +71,8 @@ const LENS_CHECKS: readonly LensCheck[] = [
   },
   // M:N joins
   { lens: 'tickDiseases', expectedFields: ['id', 'tickId', 'diseaseId'] },
+  { lens: 'tickPathogens', expectedFields: ['id', 'tickId', 'pathogenId'] },
+  { lens: 'diseasePathogens', expectedFields: ['id', 'diseaseId', 'pathogenId'] },
   {
     lens: 'tickRemovalTechniques',
     expectedFields: ['id', 'tickId', 'removalTechniqueId'],
@@ -96,6 +109,7 @@ const FEED_CHECKS: readonly FeedCheck[] = [
   { lens: 'removalTechniques', name: 'latest' },
   { lens: 'tickCounty', name: 'latest' },
   { lens: 'tickCounty', name: 'recentlyEstablished' },
+  { lens: 'pathogenCounty', name: 'recentlyDetected', emptyOk: true },
   { lens: 'diseases', name: 'trending' },
   // counties has no change-tracking column (static FIPS data); the feed
   // pulls from the embeddings index and may take time to populate.
@@ -120,6 +134,10 @@ interface AnalyzeRunCheck {
 const ANALYZE_RUN_CHECKS: readonly AnalyzeRunCheck[] = [
   { lens: 'tickDiseases', name: 'diseasesPerTick' },
   { lens: 'tickDiseases', name: 'ticksPerDisease' },
+  { lens: 'tickPathogens', name: 'pathogensPerTick' },
+  { lens: 'tickPathogens', name: 'ticksPerPathogen' },
+  { lens: 'diseasePathogens', name: 'pathogensPerDisease' },
+  { lens: 'diseasePathogens', name: 'diseasesPerPathogen' },
   { lens: 'tickCounty', name: 'establishedRange' },
   // establishedByState + casesByState now run with native pushdown
   // even though the dimension declares `through: 'county'` — the
@@ -129,6 +147,8 @@ const ANALYZE_RUN_CHECKS: readonly AnalyzeRunCheck[] = [
   // can't resolve the join at the source.
   { lens: 'tickCounty', name: 'establishedByState' },
   { lens: 'tickCounty', name: 'spreadOverTime' },
+  { lens: 'pathogenCounty', name: 'presenceByPathogen', emptyOk: true },
+  { lens: 'pathogenCounty', name: 'presenceByYear', emptyOk: true },
   { lens: 'diseaseCountyYear', name: 'casesByYear' },
   { lens: 'diseaseCountyYear', name: 'casesByState' },
   { lens: 'diseaseCountyYear', name: 'countyHotspots' },

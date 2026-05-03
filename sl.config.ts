@@ -88,6 +88,7 @@ export default defineConfig({
       // both directions without a `hasManyThrough` macro.
       relations: {
         diseaseRefs: { lens: 'tickDiseases', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 50 },
+        pathogenRefs: { lens: 'tickPathogens', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 50 },
         removalTechniqueRefs: { lens: 'tickRemovalTechniques', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 50 },
         wildFactRefs: { lens: 'wildFactTicks', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 50 },
         states: { lens: 'tickState', kind: 'hasMany', on: { id: 'tickId' }, defaultIncludeLimit: 100 },
@@ -302,6 +303,7 @@ export default defineConfig({
           defaultIncludeLimit: 240, // ~20 years × 12 months
         },
         tickRefs: { lens: 'tickDiseases', kind: 'hasMany', on: { id: 'diseaseId' }, defaultIncludeLimit: 50 },
+        pathogenRefs: { lens: 'diseasePathogens', kind: 'hasMany', on: { id: 'diseaseId' }, defaultIncludeLimit: 20 },
         wildFactRefs: { lens: 'wildFactDiseases', kind: 'hasMany', on: { id: 'diseaseId' }, defaultIncludeLimit: 50 },
       },
       feeds: {
@@ -591,6 +593,134 @@ export default defineConfig({
       },
     },
 
+    // ─── Pathogens (Ixodes-borne; CDC pathogen-presence surveillance) ─
+    //
+    // Search-worthy editorial entity, parallel to `diseases`. Future
+    // /pathogens/[slug] pages get hero data from this lens; today the
+    // public site uses it for "tested positive in N counties" badges.
+    pathogens: {
+      source: 'main',
+      table: 'pathogens',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        slug: { type: 'text', searchable: true },
+        displayName: { type: 'text', from: 'display_name', searchable: { weight: 3 } },
+        scientificName: { type: 'text', from: 'scientific_name', searchable: { weight: 2 } },
+        oneLiner: { type: 'text', from: 'one_liner', searchable: { weight: 2 } },
+        aliases: { type: 'text', array: true, searchable: { weight: 2 } },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        countyStats: {
+          lens: 'pathogenCounty',
+          kind: 'hasMany',
+          on: { id: 'pathogenId' },
+          defaultIncludeLimit: 1000,
+        },
+        tickRefs: {
+          lens: 'tickPathogens',
+          kind: 'hasMany',
+          on: { id: 'pathogenId' },
+          defaultIncludeLimit: 20,
+        },
+        diseaseRefs: {
+          lens: 'diseasePathogens',
+          kind: 'hasMany',
+          on: { id: 'pathogenId' },
+          defaultIncludeLimit: 20,
+        },
+      },
+      feeds: {
+        relatedTo: {
+          candidates: { from: 'embeddings' },
+          rank: {
+            similarity: {
+              weight: 1,
+              against: { from: 'context.seedRecordId', mode: 'recordVector' },
+            },
+          },
+          pagination: { excludeIds: 'context.seedRecordId' },
+        },
+      },
+      grants: {
+        search: 'public',
+        similar: 'public',
+        query: 'public',
+        feed: { relatedTo: 'public' },
+      },
+    },
+
+    pathogenCounty: {
+      source: 'main',
+      table: 'pathogen_county',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '15m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        pathogenId: { type: 'number', from: 'pathogen_id' },
+        countyFips: { type: 'text', from: 'county_fips' },
+        year: { type: 'number' },
+        status: { type: 'text', searchable: true },
+        source: { type: 'text', searchable: true },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        pathogen: { lens: 'pathogens', kind: 'belongsTo', on: { pathogenId: 'id' } },
+        county: { lens: 'counties', kind: 'belongsTo', on: { countyFips: 'fips' } },
+      },
+      feeds: {
+        // Mirror of tickCounty.recentlyEstablished: counties where a
+        // pathogen just flipped to "present". CDC drops are yearly so
+        // recency mostly orders rows imported in the same week.
+        recentlyDetected: {
+          candidates: { from: 'recent', limit: 500, where: { status: 'present' } },
+          rank: { recency: { weight: 1, halfLife: '30d' } },
+          pagination: { pageSize: 30, dedup: { by: 'sourceRowId' } },
+        },
+      },
+      analyses: {
+        // "Borrelia burgdorferi present in N counties" badge for the
+        // pathogen page. Distinct count of countyFips, scoped to
+        // present rows.
+        presenceByPathogen: {
+          candidates: { where: { status: 'present' } },
+          dimensions: [{ field: 'pathogenId' }],
+          measures: {
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+          },
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
+        // "B. mayonii showed up in N new counties last year" — the
+        // year-over-year version. Same shape as tickCounty.spreadOverTime.
+        presenceByYear: {
+          candidates: { where: { status: 'present' } },
+          dimensions: [
+            { field: 'pathogenId' },
+            { field: 'year' },
+          ],
+          measures: {
+            counties: { agg: 'count_distinct', column: 'countyFips' },
+          },
+          precompute: { onlyAdditive: true, refreshInterval: '15m' },
+        },
+      },
+      grants: {
+        search: 'public',
+        query: 'public',
+        feed: { recentlyDetected: 'public' },
+        analyze: {
+          presenceByPathogen: 'public',
+          presenceByYear: 'public',
+        },
+      },
+    },
+
     diseaseMonth: {
       source: 'main',
       table: 'disease_month',
@@ -681,6 +811,85 @@ export default defineConfig({
       grants: {
         query: 'public',
         analyze: { diseasesPerTick: 'public', ticksPerDisease: 'public' },
+      },
+    },
+
+    tickPathogens: {
+      source: 'main',
+      table: 'tick_pathogens',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        tickId: { type: 'number', from: 'tick_id' },
+        pathogenId: { type: 'number', from: 'pathogen_id' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        tick: { lens: 'ticks', kind: 'belongsTo', on: { tickId: 'id' } },
+        pathogen: { lens: 'pathogens', kind: 'belongsTo', on: { pathogenId: 'id' } },
+      },
+      analyses: {
+        // "Blacklegged tick carries 7 pathogens" badge / "Borrelia
+        // burgdorferi carried by 2 species" — both directions of the
+        // count, parallel to tickDiseases.diseasesPerTick.
+        pathogensPerTick: {
+          candidates: {},
+          dimensions: [{ field: 'tickId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'desc' }],
+        },
+        ticksPerPathogen: {
+          candidates: {},
+          dimensions: [{ field: 'pathogenId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'desc' }],
+        },
+      },
+      grants: {
+        query: 'public',
+        analyze: { pathogensPerTick: 'public', ticksPerPathogen: 'public' },
+      },
+    },
+
+    diseasePathogens: {
+      source: 'main',
+      table: 'disease_pathogens',
+      changeTrackingColumn: 'updatedAt',
+      syncInterval: '5m',
+      smartSyncInterval: '24h',
+      fields: {
+        id: { type: 'number', primaryKey: true },
+        diseaseId: { type: 'number', from: 'disease_id' },
+        pathogenId: { type: 'number', from: 'pathogen_id' },
+        createdAt: { type: 'date', from: 'created_at' },
+        updatedAt: { type: 'date', from: 'updated_at' },
+      },
+      relations: {
+        disease: { lens: 'diseases', kind: 'belongsTo', on: { diseaseId: 'id' } },
+        pathogen: { lens: 'pathogens', kind: 'belongsTo', on: { pathogenId: 'id' } },
+      },
+      analyses: {
+        // "Lyme caused by 2 pathogens" / "Borrelia burgdorferi causes
+        // 1 disease" — both directions of the count.
+        pathogensPerDisease: {
+          candidates: {},
+          dimensions: [{ field: 'diseaseId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'desc' }],
+        },
+        diseasesPerPathogen: {
+          candidates: {},
+          dimensions: [{ field: 'pathogenId' }],
+          measures: { count: { agg: 'count' } },
+          sort: [{ measure: 'count', dir: 'desc' }],
+        },
+      },
+      grants: {
+        query: 'public',
+        analyze: { pathogensPerDisease: 'public', diseasesPerPathogen: 'public' },
       },
     },
 

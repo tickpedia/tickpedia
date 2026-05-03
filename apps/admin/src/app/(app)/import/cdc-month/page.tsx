@@ -6,7 +6,12 @@
 // Wide is auto-detected and flattened on the fly.
 
 import { connect } from '@tickpedia/db'
-import { ingestDiseaseMonth, type DiseaseMonthRow, type IngestSummary } from '@tickpedia/db/ingest'
+import {
+  ingestDiseaseMonth,
+  parseMonth,
+  type DiseaseMonthRow,
+  type IngestSummary,
+} from '@tickpedia/db/ingest'
 import { parseSpreadsheetInput } from '../../../../lib/xlsx'
 import { notifySemilayer } from '../../../../lib/semilayer-notify'
 import BasicImportForm from '../../../components/BasicImportForm'
@@ -31,9 +36,10 @@ async function importAction(
     // Long format.
     for (const r of sheet.rows) {
       const year = Number(r[yearCol])
-      const month = Number(r[monthCol])
+      const month = parseMonth(r[monthCol])
+      if (month === null) continue
       const diseaseName = String(r[diseaseCol] ?? '').trim()
-      const count = Number(r[countCol])
+      const count = Number(String(r[countCol] ?? '').replace(/,/g, ''))
       if (!diseaseName) continue
       rows.push({ year, month, diseaseName, count: Number.isFinite(count) ? count : 0 })
     }
@@ -42,11 +48,12 @@ async function importAction(
     const diseaseCols = headers.filter((h) => h !== yearCol && h !== monthCol)
     for (const r of sheet.rows) {
       const year = Number(r[yearCol])
-      const month = Number(r[monthCol])
+      const month = parseMonth(r[monthCol])
+      if (month === null) continue
       for (const dc of diseaseCols) {
         const v = r[dc]
         if (v === null || v === '' || v === undefined) continue
-        const count = Number(v)
+        const count = Number(String(v).replace(/,/g, ''))
         if (!Number.isFinite(count)) continue
         rows.push({ year, month, diseaseName: dc, count })
       }

@@ -35,10 +35,14 @@ when an xlsx doesn't fit any of them.
 | Wide CDC county-year disease counts (cols: `State, County, FIPS, <disease>…`) | **CDC disease counts** | `disease_county_year` |
 | One-tick-per-file presence (cols: `FIPS, State, County, Status, Source, Source Comments`) | **Tick presence** → "Single tick" | `tick_county` |
 | Multi-tick presence (e.g. `Ixodes_scapularis_County_Status` + `Ixodes_pacificus_county_status` paired with `_data_source` columns) | **Tick presence** → "Multi-tick (auto-detect)" | `tick_county` |
-| Monthly national totals (long: `Year, Month, Disease, Count`; or wide: `Year, Month, <disease>…`) | **CDC monthly counts** | `disease_month` |
+| Multi-pathogen presence (e.g. `Borrelia_burgdorferi_…_County_Status` + `_Data_Source` paired columns) | **Tick pathogens (county)** | `pathogen_county` |
+| Monthly national totals (long: `Year, Month, Disease, Count` — month name or integer; or wide: `Year, Month, <disease>…`) | **CDC monthly counts** | `disease_month` |
+| Lyme per-county per-year (cols: `Ctyname, stname, ststatus, stcode, ctycode, Cases<YEAR>…`) | **Lyme cases (county × year)** | `disease_county_year` (disease_id pinned to `lyme-disease`) |
 
 The CDC site (https://www.cdc.gov/ticks/data-research/facts-stats/) is
-the upstream for all three.
+the upstream for all of them. The Lyme per-county-per-year file lives at
+https://www.cdc.gov/lyme/data-research/facts-stats/ and ships separately
+because Lyme drives the majority of all reported tick-borne disease cases.
 
 ## Idempotency contract
 
@@ -50,6 +54,7 @@ Every import path uses a `UNIQUE` index on a natural key and Postgres
 | `disease_county_year` | `(county_fips, disease_id, year)` |
 | `disease_month`       | `(year, month, disease_id)` |
 | `tick_county`         | `(tick_id, county_fips, year)` |
+| `pathogen_county`     | `(pathogen_id, county_fips, year)` |
 
 So **importing the exact same xlsx twice never increases the row count**.
 Re-importing a corrected xlsx updates the affected rows and bumps
@@ -74,6 +79,16 @@ disease name we haven't seen. Two things to do:
    then reseed. Single-tick imports pick from this list in the dropdown;
    multi-tick imports match `<scientific_name>_status` columns to the
    `scientific_name` field after `lowercase + spaces→underscores`.
+
+2b. **Unknown pathogen**: add a `CanonicalPathogen` to
+   `db/src/seeds/pathogens.ts` (with a ≤200-char `oneLiner` so the
+   pathogen lens has SEO copy on day one), then reseed. The pathogen
+   importer matches `<scientific_name>_County_Status` columns to
+   `scientific_name` (case + non-alphanumerics ignored) — or to any
+   entry in the pathogen's `aliases` list, slugified. CDC sometimes
+   adds qualifiers to the column name (e.g.
+   `Anaplasma_phagocytophilum_human_active_variant`); add the qualified
+   form to `aliases` if the bare scientific name doesn't match.
 
 3. **New file shape entirely**: add a parser to
    `db/src/ingest/`, surface it from `db/src/ingest/index.ts`, then add

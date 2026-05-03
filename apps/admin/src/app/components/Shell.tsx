@@ -47,7 +47,9 @@ const NAV: NavSection[] = [
     items: [
       { href: '/import/cdc-county', label: 'CDC disease counts' },
       { href: '/import/tick-county', label: 'Tick presence (county)' },
+      { href: '/import/pathogen-county', label: 'Tick pathogens (county)' },
       { href: '/import/cdc-month', label: 'CDC monthly counts' },
+      { href: '/import/lyme-county', label: 'Lyme cases (county × year)' },
     ],
   },
   {

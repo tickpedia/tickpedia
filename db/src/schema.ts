@@ -29,6 +29,10 @@ import { pgTable, serial, text, integer, doublePrecision, timestamp, pgEnum, uni
 export const dangerLevel = pgEnum('danger_level', ['low', 'medium', 'high'])
 export const prevalence = pgEnum('prevalence', ['low', 'medium', 'high'])
 export const tickStatus = pgEnum('tick_status', ['established', 'reported', 'no_records'])
+// CDC's Ixodes Pathogens County Table only ever publishes "Present" or
+// "No records". Cumulative — once a pathogen flips to present in a
+// county it stays present in subsequent vintages.
+export const pathogenStatus = pgEnum('pathogen_status', ['present', 'no_records'])
 
 // ─── Ticks ────────────────────────────────────────────────────────────
 
@@ -355,6 +359,110 @@ export const diseaseCountyYear = pgTable(
       t.diseaseId,
       t.year,
     ),
+  }),
+)
+
+// ─── Pathogens (Ixodes-borne; future-extensible to other genera) ──────
+//
+// CDC's "Public Use Ixodes Pathogens County Table" reports per-county
+// presence for ~7 pathogens (Borrelia burgdorferi, B. mayonii, B.
+// miyamotoi, Anaplasma phagocytophilum, Ehrlichia muris eauclairensis,
+// Babesia microti, Powassan virus). We keep them in their own table
+// rather than collapsing into `diseases` because the relationship is
+// many-to-many (one pathogen may cause several human diseases; one
+// disease may be caused by several pathogens) and the CDC surveillance
+// granularity differs (pathogen presence in ticks vs. case counts in
+// humans).
+export const pathogens = pgTable(
+  'pathogens',
+  {
+    id: serial('id').primaryKey(),
+    slug: text('slug').notNull(),
+    displayName: text('display_name').notNull(),
+    scientificName: text('scientific_name').notNull(),
+    // Same SEO contract as ticks/diseases: ≤155 chars editorial guideline,
+    // 200 hard cap at the import boundary. Nullable so seed rows stay
+    // valid before the editorial copy lands.
+    oneLiner: text('one_liner'),
+    aliases: text('aliases')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    slugIdx: uniqueIndex('pathogens_slug_idx').on(t.slug),
+    scientificIdx: uniqueIndex('pathogens_scientific_idx').on(t.scientificName),
+  }),
+)
+
+// ─── Pathogen × Tick (which ticks carry which pathogens) ────────────
+//
+// CDC's Ixodes Pathogens table only ever covers blacklegged + western
+// blacklegged. Other tick × pathogen pairs (e.g. Powassan via Ixodes
+// cookei) get added editorially through the JSON content path. Same
+// shape as `tick_diseases` — surrogate id, natural key on the pair.
+export const tickPathogens = pgTable(
+  'tick_pathogens',
+  {
+    id: serial('id').primaryKey(),
+    tickId: integer('tick_id')
+      .notNull()
+      .references(() => ticks.id, { onDelete: 'cascade' }),
+    pathogenId: integer('pathogen_id')
+      .notNull()
+      .references(() => pathogens.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('tick_pathogens_natural_idx').on(t.tickId, t.pathogenId),
+  }),
+)
+
+// ─── Pathogen × Disease (which pathogens cause which diseases) ──────
+//
+// Many-to-many: Lyme is caused by both B. burgdorferi and B. mayonii;
+// B. burgdorferi causes only Lyme. Lets a disease page surface
+// "tested positive in N counties" by joining
+// disease → diseasePathogens → pathogens → pathogenCounty.
+export const diseasePathogens = pgTable(
+  'disease_pathogens',
+  {
+    id: serial('id').primaryKey(),
+    diseaseId: integer('disease_id')
+      .notNull()
+      .references(() => diseases.id, { onDelete: 'cascade' }),
+    pathogenId: integer('pathogen_id')
+      .notNull()
+      .references(() => pathogens.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('disease_pathogens_natural_idx').on(t.diseaseId, t.pathogenId),
+  }),
+)
+
+export const pathogenCounty = pgTable(
+  'pathogen_county',
+  {
+    id: serial('id').primaryKey(),
+    pathogenId: integer('pathogen_id')
+      .notNull()
+      .references(() => pathogens.id, { onDelete: 'cascade' }),
+    countyFips: text('county_fips')
+      .notNull()
+      .references(() => counties.fips, { onDelete: 'cascade' }),
+    year: integer('year').notNull(),
+    status: pathogenStatus('status').notNull().default('no_records'),
+    source: text('source'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    naturalKey: uniqueIndex('pathogen_county_natural_idx').on(t.pathogenId, t.countyFips, t.year),
   }),
 )
 

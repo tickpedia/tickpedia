@@ -21,16 +21,20 @@ import {
   ticks,
   tickState,
   tickDiseases,
+  tickPathogens,
+  diseasePathogens,
   wildFacts,
   wildFactTicks,
   states,
   counties,
   diseases,
+  pathogens,
   removalTechniques,
 } from './schema.js'
 import { loadLocations } from './seeds/locations/index.js'
 import { CANONICAL_DISEASES } from './seeds/diseases.js'
 import { CANONICAL_TICKS } from './seeds/ticks.js'
+import { CANONICAL_PATHOGENS } from './seeds/pathogens.js'
 import { CANONICAL_REMOVAL_TECHNIQUES } from './seeds/removal-techniques.js'
 
 const url = process.env.DATABASE_URL
@@ -156,6 +160,85 @@ if (tickDiseaseRows.length > 0) {
     .onConflictDoNothing()
 }
 console.log(`tick_diseases: ${tickDiseaseRows.length} rows`)
+
+// ─── 3c. Canonical pathogens (Ixodes-borne) ───────────────────────────
+await db
+  .insert(pathogens)
+  .values(
+    CANONICAL_PATHOGENS.map((p) => ({
+      slug: p.slug,
+      displayName: p.displayName,
+      scientificName: p.scientificName,
+      oneLiner: p.oneLiner,
+      aliases: p.aliases,
+    })),
+  )
+  .onConflictDoUpdate({
+    target: pathogens.scientificName,
+    set: {
+      slug: sql`EXCLUDED.slug`,
+      displayName: sql`EXCLUDED.display_name`,
+      oneLiner: sql`EXCLUDED.one_liner`,
+      aliases: sql`EXCLUDED.aliases`,
+      updatedAt: sql`now()`,
+    },
+  })
+console.log(`pathogens: ${CANONICAL_PATHOGENS.length} rows`)
+
+// ─── 3d. Pathogen ↔ Tick + Pathogen ↔ Disease join rows ──────────────
+//
+// Resilient lookup: a pathogen's `diseases[]` may reference disease
+// slugs that only exist after the JSON content import (e.g.
+// `borrelia-miyamotoi-disease`). Missing slugs are silently skipped;
+// re-running this seed after the JSON content import lands picks up
+// the deferred rows. Resolve by slug + each disease's aliases so
+// editorial alias additions don't break the join.
+{
+  const pathogenIdRows = await db
+    .select({ id: pathogens.id, slug: pathogens.slug })
+    .from(pathogens)
+  const pathogenIdBySlug = new Map(pathogenIdRows.map((r) => [r.slug, r.id]))
+
+  const allTicks = await db.select({ id: ticks.id, slug: ticks.slug }).from(ticks)
+  const tickIdBySlugForJoin = new Map(allTicks.map((t) => [t.slug, t.id]))
+
+  const allDiseases = await db
+    .select({ id: diseases.id, slug: diseases.slug, aliases: diseases.aliases })
+    .from(diseases)
+  const diseaseIdBySlugOrAlias = new Map<string, number>()
+  for (const d of allDiseases) {
+    diseaseIdBySlugOrAlias.set(d.slug, d.id)
+    for (const a of d.aliases) diseaseIdBySlugOrAlias.set(a, d.id)
+  }
+
+  const tickPathogenRows: { tickId: number; pathogenId: number }[] = []
+  const diseasePathogenRows: { diseaseId: number; pathogenId: number }[] = []
+  let missing = 0
+  for (const p of CANONICAL_PATHOGENS) {
+    const pid = pathogenIdBySlug.get(p.slug)
+    if (!pid) continue
+    for (const tickSlug of p.ticks) {
+      const tid = tickIdBySlugForJoin.get(tickSlug)
+      if (tid) tickPathogenRows.push({ tickId: tid, pathogenId: pid })
+      else missing++
+    }
+    for (const diseaseSlug of p.diseases) {
+      const did = diseaseIdBySlugOrAlias.get(diseaseSlug)
+      if (did) diseasePathogenRows.push({ diseaseId: did, pathogenId: pid })
+      else missing++
+    }
+  }
+  if (tickPathogenRows.length > 0) {
+    await db.insert(tickPathogens).values(tickPathogenRows).onConflictDoNothing()
+  }
+  if (diseasePathogenRows.length > 0) {
+    await db.insert(diseasePathogens).values(diseasePathogenRows).onConflictDoNothing()
+  }
+  console.log(
+    `tick_pathogens: ${tickPathogenRows.length} rows; disease_pathogens: ${diseasePathogenRows.length} rows` +
+      (missing > 0 ? ` (${missing} refs deferred — slug not in DB yet)` : ''),
+  )
+}
 
 // ─── 4. Removal techniques ────────────────────────────────────────────
 await db
