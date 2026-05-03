@@ -5,6 +5,9 @@ import { DesignShowcase } from './design/index.js'
 import { matchRoute, type MatchedRoute } from './routes/index.js'
 import { TickPage } from './pages/tick/TickPage.js'
 import { TickRangePage } from './pages/tick/TickRangePage.js'
+import { AboutPage } from './pages/meta/AboutPage.js'
+import { SourcesPage } from './pages/meta/SourcesPage.js'
+import { ContributePage } from './pages/meta/ContributePage.js'
 import { PageHeader, Footer } from './pages/shared/index.js'
 
 // Pathname-driven router. SPA — every path lives in one bundle, the
@@ -39,6 +42,9 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     if (matched.kind === 'tick-range' && matched.params.slug) {
       return <TickRangePage slug={matched.params.slug} />
     }
+    if (matched.kind === 'about') return <AboutPage />
+    if (matched.kind === 'sources') return <SourcesPage />
+    if (matched.kind === 'contribute') return <ContributePage />
   }
   // Everything else falls back to the legacy home until its real page
   // ships. The path is shown so the URL is still useful while pages
