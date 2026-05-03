@@ -30,7 +30,7 @@ export function StatsFooter({ stats }: StatsFooterProps) {
         borderTop: '1px solid var(--rule)',
       }}
     >
-      <span>MIT licensed · sources cited · no tracking · no cookies</span>
+      <span>MIT licensed · sources cited</span>
       <span className="mono">
         {ticks} ticks · {diseases} diseases · {counties} counties · {cases} case-rows
       </span>

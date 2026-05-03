@@ -10,7 +10,7 @@ export function AboutPage() {
     <MetaPage
       title="About"
       eyebrow="Field guide"
-      lede="Tickpedia is an encyclopedia of ticks, the diseases they carry, and how to get them off you. Open source and free of tracking."
+      lede="Tickpedia is an encyclopedia of ticks, the diseases they carry, and how to get them off you. Open source, MIT-licensed."
       canonicalPath="/about"
     >
       <section className="tp-section">
@@ -32,15 +32,16 @@ export function AboutPage() {
       </section>
 
       <section className="tp-section">
-        <h2 className="tp-serif">Open source, no tracking</h2>
+        <h2 className="tp-serif">Open source</h2>
         <p>
           Tickpedia is licensed MIT and developed in public at{' '}
           <a href="https://github.com/tickpedia/tickpedia" rel="noreferrer">
             github.com/tickpedia/tickpedia
           </a>
-          . The site ships no analytics, no cookies, no third-party
-          embeds. Pages are static HTML hosted on GitHub Pages — what
-          you load is what your browser renders.
+          . Pages are static HTML hosted on GitHub Pages — what you
+          load is what your browser renders. The site uses Google
+          Analytics (via Tag Manager) for aggregate pageview counts;
+          no other third-party embeds.
         </p>
         <p>
           The read-side intelligence (search, related-content rails,
