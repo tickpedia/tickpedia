@@ -12,6 +12,8 @@ import { DiseaseSeasonalityPage } from './pages/disease/DiseaseSeasonalityPage.j
 import { DiseaseHistoryPage } from './pages/disease/DiseaseHistoryPage.js'
 import { DiseaseTicksPage } from './pages/disease/DiseaseTicksPage.js'
 import { DiseasePathogensPage } from './pages/disease/DiseasePathogensPage.js'
+import { TechniquesIndexPage } from './pages/technique/TechniquesIndexPage.js'
+import { TechniquePage } from './pages/technique/TechniquePage.js'
 import { AboutPage } from './pages/meta/AboutPage.js'
 import { SourcesPage } from './pages/meta/SourcesPage.js'
 import { ContributePage } from './pages/meta/ContributePage.js'
@@ -67,6 +69,10 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     }
     if (matched.kind === 'disease-pathogens' && matched.params.slug) {
       return <DiseasePathogensPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'techniques-index') return <TechniquesIndexPage />
+    if (matched.kind === 'technique' && matched.params.slug) {
+      return <TechniquePage slug={matched.params.slug} />
     }
     if (matched.kind === 'about') return <AboutPage />
     if (matched.kind === 'sources') return <SourcesPage />

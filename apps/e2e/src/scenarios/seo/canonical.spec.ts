@@ -47,6 +47,16 @@ const SEO_CASES: ReadonlyArray<SeoCase> = [
     expectedTitle: 'Lyme disease — Seasonality | Tickpedia',
     expectedCanonical: 'https://tickpedia.com/diseases/lyme-disease/seasonality',
   },
+  {
+    path: '/techniques',
+    expectedTitle: 'Techniques — Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/techniques',
+  },
+  {
+    path: '/techniques/fine-tipped-tweezers',
+    expectedTitle: 'Fine-tipped tweezers (CDC method) — Techniques | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/techniques/fine-tipped-tweezers',
+  },
 ]
 
 test.describe('seo · per-page surface in raw HTML (no JS)', () => {

@@ -495,6 +495,63 @@
     gap: 20px;
   }
 }
+
+/* ---- Technique hero (headline · monogram · applies-to) ----
+ * Three-column desktop layout matching the design's tech mock; the
+ * monogram column collapses first on mid-narrow viewports, then the
+ * applies-to sidebar wraps under the headline on phones.
+ */
+.tp-tech-hero {
+  padding: 20px 32px 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px 280px;
+  gap: 32px;
+  align-items: start;
+}
+.tp-tech-hero h1 {
+  font-size: clamp(34px, 6.4vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  margin: 10px 0 6px;
+}
+.tp-tech-hero .lede {
+  font-size: clamp(16px, 1.8vw, 19px);
+  color: var(--ink-2);
+  line-height: 1.5;
+  max-width: 560px;
+}
+.tp-tech-hero .crest {
+  max-width: 200px;
+  justify-self: center;
+}
+.tp-tech-hero .applies-to {
+  padding: 16px;
+  background: var(--surface);
+}
+@media (max-width: 880px) {
+  .tp-tech-hero {
+    grid-template-columns: minmax(0, 1fr) 160px;
+    gap: 24px;
+    padding: 18px 20px 24px;
+  }
+  .tp-tech-hero .crest {
+    max-width: 160px;
+  }
+  .tp-tech-hero .applies-to {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 560px) {
+  .tp-tech-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 16px 16px 20px;
+  }
+  .tp-tech-hero .crest {
+    max-width: 180px;
+    justify-self: center;
+  }
+}
 .tp-section h2 {
   font-size: 22px;
 }

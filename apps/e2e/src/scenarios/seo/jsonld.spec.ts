@@ -87,8 +87,43 @@ test.describe('seo · JSON-LD on tick pages', () => {
     expect(crumbs?.itemListElement[1]?.name).toBe('Diseases')
     expect(crumbs?.itemListElement[2]?.name).toBe('Lyme disease')
   })
-  test.skip('technique pages embed HowTo schema', async () => {
-    /* phase 6 */
+  test('technique pages embed HowTo + BreadcrumbList', async ({ request }) => {
+    const res = await request.get('/techniques/fine-tipped-tweezers')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+
+    const schemas = extractJsonLd(body)
+    const howto = schemas.find((s) => s['@type'] === 'HowTo') as
+      | {
+          name: string
+          url: string
+          description?: string
+          step: Array<{ '@type': string; position: number; text: string }>
+          tool?: Array<{ '@type': string; name: string }>
+        }
+      | undefined
+    expect(howto).toBeDefined()
+    expect(howto?.name).toContain('tweezers')
+    expect(howto?.url).toBe('https://tickpedia.com/techniques/fine-tipped-tweezers')
+    // The CDC seed entry has 4 steps; the schema must carry at least
+    // that many HowToStep entries with monotonically increasing
+    // `position` values.
+    expect(howto?.step.length).toBeGreaterThanOrEqual(2)
+    const positions = howto?.step.map((s) => s.position) ?? []
+    for (let i = 1; i < positions.length; i++) {
+      expect(positions[i]).toBeGreaterThan(positions[i - 1] ?? 0)
+    }
+    // The fine-tipped-tweezers entry surfaces a HowToTool — primary
+    // method gets the tweezers explicitly so Google can render the
+    // "you'll need" affordance.
+    expect(howto?.tool?.[0]?.name.toLowerCase()).toContain('tweezers')
+
+    const crumbs = schemas.find((s) => s['@type'] === 'BreadcrumbList') as
+      | { itemListElement: Array<{ position: number; name: string; item?: string }> }
+      | undefined
+    expect(crumbs).toBeDefined()
+    expect(crumbs?.itemListElement).toHaveLength(3)
+    expect(crumbs?.itemListElement[1]?.name).toBe('Techniques')
   })
   test.skip('county pages embed Place + geo block from county centroid', async () => {
     /* phase 8 */

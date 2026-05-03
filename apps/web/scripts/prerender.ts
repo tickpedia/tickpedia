@@ -22,6 +22,10 @@ import { BeamClient } from '@semilayer/client'
 import { listCanonicalUrls } from '../src/routes/canonical-urls.js'
 import { prefetchTickPage } from '../src/ssr/prefetch/tick.js'
 import { prefetchDiseasePage } from '../src/ssr/prefetch/disease.js'
+import {
+  prefetchTechniquePage,
+  prefetchTechniquesIndex,
+} from '../src/ssr/prefetch/technique.js'
 import { buildTickRangeHead } from '../src/pages/tick/seo.js'
 import { buildDiseaseSubPageHead } from '../src/pages/disease/seo.js'
 import { buildHeadHtml } from '../src/pages/shared/seo/index.js'
@@ -127,10 +131,28 @@ async function main(): Promise<void> {
     written += await emit(template, ssr, `/diseases/${slug}/pathogens`,    cache, buildDiseaseSubPageHead(disease, 'Pathogens'))
   }
 
+  // ── Technique page family ──
+  const techniqueIndex = await prefetchTechniquesIndex(client)
+  written += await emit(template, ssr, '/techniques', techniqueIndex.cache, techniqueIndex.head)
+
+  const techniqueSlugs = new Set<string>()
+  for (const url of allUrls) {
+    if (url.kind === 'technique' && url.slug) techniqueSlugs.add(url.slug)
+  }
+
+  for (const slug of techniqueSlugs) {
+    const prefetched = await prefetchTechniquePage(client, slug)
+    if (!prefetched) {
+      skipped += 1
+      continue
+    }
+    written += await emit(template, ssr, `/techniques/${slug}`, prefetched.cache, prefetched.head)
+  }
+
   const tookMs = Date.now() - startedAt
   console.log(
     `✓ prerendered ${written} HTML file${written === 1 ? '' : 's'} ` +
-      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${skipped} skipped) in ${tookMs}ms`,
+      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ${skipped} skipped) in ${tookMs}ms`,
   )
 }
 
