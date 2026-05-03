@@ -35,6 +35,11 @@ import {
   prefetchCountiesLeaderboard,
   buildCountyPrefetchContext,
 } from '../src/ssr/prefetch/county.js'
+import {
+  buildFactPrefetchContext,
+  prefetchFactPage,
+  prefetchFactsIndex,
+} from '../src/ssr/prefetch/fact.js'
 import { buildTickRangeHead } from '../src/pages/tick/seo.js'
 import { buildDiseaseSubPageHead } from '../src/pages/disease/seo.js'
 import { buildStateSubPageHead } from '../src/pages/state/seo.js'
@@ -230,11 +235,31 @@ async function main(): Promise<void> {
     }
   }
 
+  // ── Wild facts page family ──
+  const factCtx = await buildFactPrefetchContext(client)
+
+  const factsIndex = await prefetchFactsIndex(client, factCtx)
+  written += await emit(template, ssr, '/facts', factsIndex.cache, factsIndex.head)
+
+  const factSlugs = new Set<string>()
+  for (const url of allUrls) {
+    if (url.kind === 'fact' && url.slug) factSlugs.add(url.slug)
+  }
+
+  for (const slug of factSlugs) {
+    const prefetched = await prefetchFactPage(client, slug, factCtx)
+    if (!prefetched) {
+      skipped += 1
+      continue
+    }
+    written += await emit(template, ssr, `/facts/${slug}`, prefetched.cache, prefetched.head)
+  }
+
   const tookMs = Date.now() - startedAt
   console.log(
     `✓ prerendered ${written} HTML file${written === 1 ? '' : 's'} ` +
       `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${techniqueSlugs.size} techniques, ` +
-      `${stateSlugs.size} states, ${countyKeys.size} counties, ${skipped} skipped) in ${tookMs}ms`,
+      `${stateSlugs.size} states, ${countyKeys.size} counties, ${factSlugs.size} facts, ${skipped} skipped) in ${tookMs}ms`,
   )
 }
 

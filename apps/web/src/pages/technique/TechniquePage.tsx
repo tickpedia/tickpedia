@@ -3,9 +3,11 @@ import { PageHeader, Crumb, Footer, useDocumentHead } from '../shared/index.js'
 import { useTechnique } from './data/useTechnique.js'
 import { useTechniqueTicks } from './data/useTechniqueTicks.js'
 import { useTechniqueDiseases } from './data/useTechniqueDiseases.js'
+import { useEntityFacts } from '../fact/data/useEntityFacts.js'
 import { HeroSection } from './sections/HeroSection.js'
 import { StepsSection } from './sections/StepsSection.js'
 import { PreventsDiseasesSection } from './sections/PreventsDiseasesSection.js'
+import { FactsRail } from '../fact/sections/FactsRail.js'
 import { buildTechniqueHead } from './seo.js'
 
 // /techniques/[slug] — the canonical technique encyclopedia page.
@@ -24,6 +26,7 @@ export function TechniquePage({ slug }: TechniquePageProps) {
   const ticks = useTechniqueTicks(techniqueId)
   const tickIds = useMemo(() => ticks.rows.map((r) => r.id), [ticks.rows])
   const diseases = useTechniqueDiseases(techniqueId, tickIds)
+  const facts = useEntityFacts('technique', techniqueId)
 
   const head = technique
     ? buildTechniqueHead(technique)
@@ -69,6 +72,12 @@ export function TechniquePage({ slug }: TechniquePageProps) {
         rows={diseases.rows}
         loading={diseases.loading}
         error={diseases.error}
+      />
+      <FactsRail
+        rows={facts.rows}
+        loading={facts.loading}
+        error={facts.error}
+        testIdPrefix="technique-facts"
       />
       <Footer />
     </div>

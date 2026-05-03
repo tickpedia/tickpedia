@@ -8,6 +8,8 @@ import {
 import { useDiseaseHistory } from './data/useDiseaseHistory.js'
 import { useDiseaseTicks } from './data/useDiseaseTicks.js'
 import { useDiseasePathogens } from './data/useDiseasePathogens.js'
+import { useEntityFacts } from '../fact/data/useEntityFacts.js'
+import { FactsRail } from '../fact/sections/FactsRail.js'
 import { HeroSection } from './sections/HeroSection.js'
 import { StatesSection } from './sections/StatesSection.js'
 import { SeasonalitySection } from './sections/SeasonalitySection.js'
@@ -36,6 +38,7 @@ export function DiseasePage({ slug }: DiseasePageProps) {
   const history = useDiseaseHistory(diseaseId)
   const ticks = useDiseaseTicks(diseaseId)
   const pathogens = useDiseasePathogens(diseaseId)
+  const facts = useEntityFacts('disease', diseaseId)
 
   const peak = pickPeakMonth(seasonality.data)
   const totalCases = states.data?.total ?? null
@@ -131,6 +134,12 @@ export function DiseasePage({ slug }: DiseasePageProps) {
         loading={pathogens.loading}
         error={pathogens.error}
         diseaseName={disease.displayName}
+      />
+      <FactsRail
+        rows={facts.rows}
+        loading={facts.loading}
+        error={facts.error}
+        testIdPrefix="disease-facts"
       />
       <Footer />
     </div>

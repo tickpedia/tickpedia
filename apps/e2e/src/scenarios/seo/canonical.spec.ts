@@ -92,6 +92,11 @@ const SEO_CASES: ReadonlyArray<SeoCase> = [
     expectedTitle: 'Cumberland County — Maine | Tickpedia',
     expectedCanonical: 'https://tickpedia.com/counties/maine/cumberland',
   },
+  {
+    path: '/facts',
+    expectedTitle: 'Wild facts — Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/facts',
+  },
 ]
 
 test.describe('seo · per-page surface in raw HTML (no JS)', () => {

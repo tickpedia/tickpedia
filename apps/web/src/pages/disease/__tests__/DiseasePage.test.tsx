@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   ticksQuery: vi.fn(),
   diseasePathogensQuery: vi.fn(),
   pathogensQuery: vi.fn(),
+  wildFactDiseasesQuery: vi.fn(),
+  wildFactsQuery: vi.fn(),
 }))
 
 vi.mock('../../../lib/beam.js', () => ({
@@ -26,6 +28,8 @@ vi.mock('../../../lib/beam.js', () => ({
     ticks: { query: mocks.ticksQuery },
     diseasePathogens: { query: mocks.diseasePathogensQuery },
     pathogens: { query: mocks.pathogensQuery },
+    wildFactDiseases: { query: mocks.wildFactDiseasesQuery },
+    wildFacts: { query: mocks.wildFactsQuery },
   },
 }))
 
@@ -34,6 +38,8 @@ import { DiseasePage } from '../DiseasePage.js'
 describe('DiseasePage', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((m) => m.mockReset())
+    mocks.wildFactDiseasesQuery.mockResolvedValue({ rows: [] })
+    mocks.wildFactsQuery.mockResolvedValue({ rows: [] })
     document.title = ''
     document.head.querySelectorAll('link[rel="canonical"]').forEach((n) => n.remove())
     document.head.querySelectorAll('meta[name="description"]').forEach((n) => n.remove())
