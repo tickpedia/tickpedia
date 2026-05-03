@@ -59,6 +59,11 @@ jobs:
       - run: pnpm e2e
         env:
           CI: 'true'
+          # Same public key the production GH Pages bundle ships with —
+          # safe to expose, gated by SemiLayer's per-grant access rules.
+          # Without it the preview-server bundle has an empty apiKey,
+          # every page renders empty, and every tick scenario fails.
+          NEXT_PUBLIC_SEMILAYER_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_SEMILAYER_PUBLIC_KEY }}
 
       - if: always()
         uses: actions/upload-artifact@v4
