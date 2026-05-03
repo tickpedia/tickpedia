@@ -5,6 +5,13 @@ import { DesignShowcase } from './design/index.js'
 import { matchRoute, type MatchedRoute } from './routes/index.js'
 import { TickPage } from './pages/tick/TickPage.js'
 import { TickRangePage } from './pages/tick/TickRangePage.js'
+import { DiseasesIndexPage } from './pages/disease/DiseasesIndexPage.js'
+import { DiseasePage } from './pages/disease/DiseasePage.js'
+import { DiseaseStatesPage } from './pages/disease/DiseaseStatesPage.js'
+import { DiseaseSeasonalityPage } from './pages/disease/DiseaseSeasonalityPage.js'
+import { DiseaseHistoryPage } from './pages/disease/DiseaseHistoryPage.js'
+import { DiseaseTicksPage } from './pages/disease/DiseaseTicksPage.js'
+import { DiseasePathogensPage } from './pages/disease/DiseasePathogensPage.js'
 import { AboutPage } from './pages/meta/AboutPage.js'
 import { SourcesPage } from './pages/meta/SourcesPage.js'
 import { ContributePage } from './pages/meta/ContributePage.js'
@@ -41,6 +48,25 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     }
     if (matched.kind === 'tick-range' && matched.params.slug) {
       return <TickRangePage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'diseases-index') return <DiseasesIndexPage />
+    if (matched.kind === 'disease' && matched.params.slug) {
+      return <DiseasePage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'disease-states' && matched.params.slug) {
+      return <DiseaseStatesPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'disease-seasonality' && matched.params.slug) {
+      return <DiseaseSeasonalityPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'disease-history' && matched.params.slug) {
+      return <DiseaseHistoryPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'disease-ticks' && matched.params.slug) {
+      return <DiseaseTicksPage slug={matched.params.slug} />
+    }
+    if (matched.kind === 'disease-pathogens' && matched.params.slug) {
+      return <DiseasePathogensPage slug={matched.params.slug} />
     }
     if (matched.kind === 'about') return <AboutPage />
     if (matched.kind === 'sources') return <SourcesPage />

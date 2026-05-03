@@ -67,6 +67,7 @@ describe('URL_PATTERNS', () => {
       '/diseases/:slug/states',
       '/diseases/:slug/seasonality',
       '/diseases/:slug/ticks',
+      '/diseases/:slug/pathogens',
       '/diseases/:slug/history',
       '/techniques',
       '/techniques/:slug',

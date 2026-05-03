@@ -59,9 +59,33 @@ test.describe('seo · JSON-LD on tick pages', () => {
     }
   })
 
-  // Filled per page family in subsequent phases.
-  test.skip('disease pages embed MedicalCondition schema', async () => {
-    /* phase 5 */
+  test('disease pages embed MedicalCondition + BreadcrumbList', async ({ request }) => {
+    const res = await request.get('/diseases/lyme-disease')
+    expect(res.ok()).toBe(true)
+    const body = await res.text()
+
+    const schemas = extractJsonLd(body)
+    const medical = schemas.find((s) => s['@type'] === 'MedicalCondition') as
+      | {
+          name: string
+          alternateName?: string[]
+          url: string
+          description?: string
+          cause?: { '@type': string; name: string }
+          epidemiology?: string
+        }
+      | undefined
+    expect(medical).toBeDefined()
+    expect(medical?.name).toBe('Lyme disease')
+    expect(medical?.url).toBe('https://tickpedia.com/diseases/lyme-disease')
+
+    const crumbs = schemas.find((s) => s['@type'] === 'BreadcrumbList') as
+      | { itemListElement: Array<{ position: number; name: string; item?: string }> }
+      | undefined
+    expect(crumbs).toBeDefined()
+    expect(crumbs?.itemListElement).toHaveLength(3)
+    expect(crumbs?.itemListElement[1]?.name).toBe('Diseases')
+    expect(crumbs?.itemListElement[2]?.name).toBe('Lyme disease')
   })
   test.skip('technique pages embed HowTo schema', async () => {
     /* phase 6 */

@@ -21,7 +21,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { BeamClient } from '@semilayer/client'
 import { listCanonicalUrls } from '../src/routes/canonical-urls.js'
 import { prefetchTickPage } from '../src/ssr/prefetch/tick.js'
+import { prefetchDiseasePage } from '../src/ssr/prefetch/disease.js'
 import { buildTickRangeHead } from '../src/pages/tick/seo.js'
+import { buildDiseaseSubPageHead } from '../src/pages/disease/seo.js'
 import { buildHeadHtml } from '../src/pages/shared/seo/index.js'
 import {
   serializeDataCache,
@@ -62,30 +64,28 @@ async function main(): Promise<void> {
   const ssr = (await import(pathToFileURL(SSR_BUNDLE).href)) as SsrModule
 
   const allUrls = await listCanonicalUrls(client)
-  const tickUrls = allUrls.filter(
-    (u) => u.kind === 'tick' || u.kind === 'tick-range',
-  )
 
   const startedAt = Date.now()
   let written = 0
   let skipped = 0
 
-  // Group by slug so we share one prefetch between /ticks/[slug] and
-  // /ticks/[slug]/range.
-  const slugs = new Set<string>()
-  for (const url of tickUrls) if (url.slug) slugs.add(url.slug)
+  // ── Tick page family ──
+  const tickSlugs = new Set<string>()
+  for (const url of allUrls) {
+    if ((url.kind === 'tick' || url.kind === 'tick-range') && url.slug) {
+      tickSlugs.add(url.slug)
+    }
+  }
 
-  for (const slug of slugs) {
+  for (const slug of tickSlugs) {
     const prefetched = await prefetchTickPage(client, slug)
     if (!prefetched) {
       skipped += 1
       continue
     }
 
-    // Tick page
     written += await emit(template, ssr, `/ticks/${slug}`, prefetched.cache, prefetched.head)
 
-    // Tick-range page (same data cache; different head)
     const tickRow = prefetched.cache[`tick:${slug}`] as
       | { commonName: string; scientificName: string; slug: string }
       | undefined
@@ -95,10 +95,42 @@ async function main(): Promise<void> {
     }
   }
 
+  // ── Disease page family ──
+  const diseaseSlugs = new Set<string>()
+  for (const url of allUrls) {
+    if (
+      (url.kind === 'disease' ||
+        url.kind === 'disease-states' ||
+        url.kind === 'disease-seasonality' ||
+        url.kind === 'disease-history' ||
+        url.kind === 'disease-ticks' ||
+        url.kind === 'disease-pathogens') &&
+      url.slug
+    ) {
+      diseaseSlugs.add(url.slug)
+    }
+  }
+
+  for (const slug of diseaseSlugs) {
+    const prefetched = await prefetchDiseasePage(client, slug)
+    if (!prefetched) {
+      skipped += 1
+      continue
+    }
+    const { cache, head, disease } = prefetched
+
+    written += await emit(template, ssr, `/diseases/${slug}`, cache, head)
+    written += await emit(template, ssr, `/diseases/${slug}/states`,       cache, buildDiseaseSubPageHead(disease, 'States'))
+    written += await emit(template, ssr, `/diseases/${slug}/seasonality`,  cache, buildDiseaseSubPageHead(disease, 'Seasonality'))
+    written += await emit(template, ssr, `/diseases/${slug}/history`,      cache, buildDiseaseSubPageHead(disease, 'History'))
+    written += await emit(template, ssr, `/diseases/${slug}/ticks`,        cache, buildDiseaseSubPageHead(disease, 'Ticks'))
+    written += await emit(template, ssr, `/diseases/${slug}/pathogens`,    cache, buildDiseaseSubPageHead(disease, 'Pathogens'))
+  }
+
   const tookMs = Date.now() - startedAt
   console.log(
     `✓ prerendered ${written} HTML file${written === 1 ? '' : 's'} ` +
-      `(${slugs.size} ticks, ${skipped} skipped) in ${tookMs}ms`,
+      `(${tickSlugs.size} ticks, ${diseaseSlugs.size} diseases, ${skipped} skipped) in ${tookMs}ms`,
   )
 }
 

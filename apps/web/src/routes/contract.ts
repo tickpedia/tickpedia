@@ -37,6 +37,7 @@ export type EntityKind =
   | 'disease-states'
   | 'disease-seasonality'
   | 'disease-ticks'
+  | 'disease-pathogens'
   | 'disease-history'
   // techniques
   | 'techniques-index'
@@ -96,6 +97,7 @@ export const URL_PATTERNS: readonly UrlPattern[] = [
   { kind: 'disease-states',       path: '/diseases/:slug/states',         slugSource: 'diseases' },
   { kind: 'disease-seasonality',  path: '/diseases/:slug/seasonality',    slugSource: 'diseases' },
   { kind: 'disease-ticks',        path: '/diseases/:slug/ticks',          slugSource: 'diseases' },
+  { kind: 'disease-pathogens',    path: '/diseases/:slug/pathogens',      slugSource: 'diseases' },
   { kind: 'disease-history',      path: '/diseases/:slug/history',        slugSource: 'diseases' },
 
   // Techniques

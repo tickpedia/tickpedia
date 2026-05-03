@@ -32,6 +32,21 @@ const SEO_CASES: ReadonlyArray<SeoCase> = [
     expectedTitle: 'Blacklegged tick range — Ticks | Tickpedia',
     expectedCanonical: 'https://tickpedia.com/ticks/blacklegged-tick/range',
   },
+  {
+    path: '/diseases/lyme-disease',
+    expectedTitle: 'Lyme disease — Diseases | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/diseases/lyme-disease',
+  },
+  {
+    path: '/diseases/lyme-disease/states',
+    expectedTitle: 'Lyme disease — States | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/diseases/lyme-disease/states',
+  },
+  {
+    path: '/diseases/lyme-disease/seasonality',
+    expectedTitle: 'Lyme disease — Seasonality | Tickpedia',
+    expectedCanonical: 'https://tickpedia.com/diseases/lyme-disease/seasonality',
+  },
 ]
 
 test.describe('seo · per-page surface in raw HTML (no JS)', () => {
@@ -88,6 +103,24 @@ test.describe('seo · prerendered body in raw HTML', () => {
     const body = await res.text()
     expect(body).toContain('window.__TICKPEDIA_DATA__=')
     expect(body).toContain('"tick:lone-star-tick"')
+  })
+
+  test('/diseases/lyme-disease body contains the H1 and tick cross-links without JS', async ({ request }) => {
+    const res = await request.get('/diseases/lyme-disease')
+    const body = await res.text()
+    expect(body).toMatch(/<h1[^>]*>Lyme disease<\/h1>/i)
+    // Cross-link out to at least one tick page (the brief promises
+    // every carrying tick is rendered as a link).
+    expect(body).toMatch(/href="\/ticks\/blacklegged-tick"/)
+    // Flagship CTA points at /risk/[slug].
+    expect(body).toMatch(/href="\/risk\/lyme-disease"/)
+  })
+
+  test('/diseases/lyme-disease inlines the SSR data cache under disease:<slug>', async ({ request }) => {
+    const res = await request.get('/diseases/lyme-disease')
+    const body = await res.text()
+    expect(body).toContain('window.__TICKPEDIA_DATA__=')
+    expect(body).toContain('"disease:lyme-disease"')
   })
 })
 

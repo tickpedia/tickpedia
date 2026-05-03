@@ -8,7 +8,7 @@ import { DiseasesSection } from './sections/DiseasesSection.js'
 import { buildTickHead } from './seo.js'
 
 // /ticks/[slug] — the canonical tick encyclopedia page. Composes the
-// hero, the range section, and the diseases-it-carries table from
+// hero, the range section, and the diseases-it-carries rail from
 // three independent data hooks; the page itself stays a thin
 // orchestrator.
 

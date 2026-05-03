@@ -148,6 +148,16 @@ const PAGE_READS_LIST: readonly PageReads[] = [
     ],
   },
   {
+    kind: 'disease-pathogens',
+    reads: [
+      { label: 'diseases.query(slug)',                    run: (url, c) => c.query('diseases', { where: { slug: url.slug }, limit: 1 }) },
+      // diseasePathogens may legitimately be empty for a disease whose
+      // pathogen association hasn't been seeded yet — the page renders
+      // an empty state rather than 404ing.
+      { label: 'diseasePathogens.pathogensPerDisease',    run: (_, c) => c.analyze('diseasePathogens', 'pathogensPerDisease'), emptyOk: true },
+    ],
+  },
+  {
     kind: 'disease-history',
     reads: [
       { label: 'diseases.query(slug)',          run: (url, c) => c.query('diseases', { where: { slug: url.slug }, limit: 1 }) },
