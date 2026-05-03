@@ -29,6 +29,15 @@ test.describe('/ticks/[slug]', () => {
     await expect(rangeLink).toHaveAttribute('href', `/ticks/${TICK_SLUG}/range`)
   })
 
+  test('range section right column shows a top-N states leaderboard', async ({ page }) => {
+    await page.goto(`/ticks/${TICK_SLUG}`)
+    const summary = page.getByTestId('range-summary')
+    await expect(summary).toBeVisible()
+    // The leaderboard is a real <table> with a "Top N states" caption.
+    await expect(summary.getByRole('table')).toBeVisible()
+    await expect(summary.locator('caption')).toHaveText(/top \d+ states/i)
+  })
+
   test('not-found state for an unknown slug', async ({ page }) => {
     await page.goto('/ticks/this-tick-does-not-exist')
     await expect(page.getByRole('heading', { name: /tick not found/i })).toBeVisible()

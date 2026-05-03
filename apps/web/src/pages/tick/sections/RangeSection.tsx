@@ -1,10 +1,12 @@
-import { Choropleth, stateNameFor, stateSlugFor } from '../../../charts/index.js'
-import { RampLegend } from '../../../charts/index.js'
+import { Choropleth, Leaderboard, stateNameFor, stateSlugFor } from '../../../charts/index.js'
+import { RampLegend, type LeaderboardRow } from '../../../charts/index.js'
 import { pathFor } from '../../../routes/index.js'
 import type { TickRangeData } from '../data/useTickRange.js'
 
 // "Where it's established" — square-cartogram choropleth keyed by
-// state FIPS, with a link to the deeper /range sub-page.
+// state FIPS, plus a top-N states leaderboard so the right column
+// carries its own weight (the choropleth is great for shape, the
+// leaderboard for ranking + raw counts).
 
 export interface RangeSectionProps {
   tickSlug: string
@@ -14,7 +16,12 @@ export interface RangeSectionProps {
   error: Error | null
 }
 
+const TOP_N = 8
+
 export function RangeSection({ tickSlug, tickCommon, data, loading, error }: RangeSectionProps) {
+  const topRows = topStatesRows(data)
+  const summary = summarySentence(tickCommon, data)
+
   return (
     <section id="range" className="tp-section">
       <div className="head">
@@ -54,13 +61,28 @@ export function RangeSection({ tickSlug, tickCommon, data, loading, error }: Ran
               {loading && <span className="ui meta">loading…</span>}
             </div>
           </div>
-          <div>
+          <div data-testid="range-summary">
             <p
               className="tp-serif"
-              style={{ fontSize: 15, lineHeight: 1.5, margin: 0 }}
+              style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 12px', color: 'var(--ink-2)' }}
             >
-              {summaryParagraph(tickCommon, data)}
+              {summary}
             </p>
+            {topRows.length > 0 ? (
+              <Leaderboard
+                rows={topRows}
+                valueLabel="Counties"
+                caption={`Top ${topRows.length} states`}
+              />
+            ) : (
+              <p
+                className="ui"
+                style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}
+              >
+                No CDC-reported establishments yet — the leaderboard
+                fills in as new surveillance reports land.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -80,14 +102,37 @@ function fipsToData(data: TickRangeData | null): Record<string, number> {
   return out
 }
 
-function summaryParagraph(tickCommon: string, data: TickRangeData | null): string {
+/**
+ * Top-N states by established-county count. Drops zero-count rows
+ * and rows whose FIPS doesn't resolve to a USPS code (territories /
+ * dirty data) so the leaderboard never shows blank rank entries.
+ */
+export function topStatesRows(data: TickRangeData | null): LeaderboardRow[] {
+  if (!data) return []
+  const rows: Array<{ code: string; count: number }> = []
+  for (const [fips, count] of Object.entries(data.byStateFips)) {
+    if (count <= 0) continue
+    const code = USPS_BY_FIPS[fips]
+    if (!code) continue
+    rows.push({ code, count })
+  }
+  rows.sort((a, b) => b.count - a.count)
+  return rows.slice(0, TOP_N).map((r, i) => ({
+    rank: i + 1,
+    label: stateNameFor(r.code),
+    href: stateSlugFor(r.code) ? `/states/${stateSlugFor(r.code)!}` : undefined,
+    value: r.count,
+  })) as LeaderboardRow[]
+}
+
+function summarySentence(tickCommon: string, data: TickRangeData | null): string {
   if (!data) return `Loading the established range for ${tickCommon}.`
-  const states = Object.keys(data.byStateFips).length
+  const states = Object.keys(data.byStateFips).filter((f) => (data.byStateFips[f] ?? 0) > 0).length
   const total = Object.values(data.byStateFips).reduce((a, b) => a + b, 0)
   if (states === 0) {
-    return `No CDC-reported established counties yet for ${tickCommon}. The range will populate as new surveillance reports land.`
+    return `No CDC-reported established counties yet for ${tickCommon}.`
   }
-  return `Reported as established in ${total.toLocaleString()} ${total === 1 ? 'county' : 'counties'} across ${states} ${states === 1 ? 'state' : 'states'}. Each square is one US state, sized by how many counties have CDC-confirmed establishment.`
+  return `Established in ${total.toLocaleString()} ${total === 1 ? 'county' : 'counties'} across ${states} ${states === 1 ? 'state' : 'states'}.`
 }
 
 function ErrorMessage({ message }: { message: string }) {
