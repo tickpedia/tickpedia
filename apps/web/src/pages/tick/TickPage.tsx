@@ -1,4 +1,4 @@
-import { PageHeader, Crumb, useDocumentHead } from '../shared/index.js'
+import { PageHeader, Crumb, Footer, useDocumentHead } from '../shared/index.js'
 import { useTick } from './data/useTick.js'
 import { useTickRange } from './data/useTickRange.js'
 import { useTickDiseases } from './data/useTickDiseases.js'
@@ -75,6 +75,7 @@ export function TickPage({ slug }: TickPageProps) {
         error={range.error}
       />
       <DiseasesSection rows={diseases.rows} loading={diseases.loading} error={diseases.error} />
+      <Footer />
     </div>
   )
 }
@@ -84,6 +85,7 @@ function PageScaffold({ children }: { children: React.ReactNode }) {
     <div className="tp-page">
       <PageHeader active="ticks" />
       <div style={{ padding: '40px 32px' }}>{children}</div>
+      <Footer />
     </div>
   )
 }

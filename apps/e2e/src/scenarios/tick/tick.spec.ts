@@ -38,6 +38,18 @@ test.describe('/ticks/[slug]', () => {
     await expect(summary.locator('caption')).toHaveText(/top \d+ states/i)
   })
 
+  test('renders the global footer with project + browse links', async ({ page }) => {
+    await page.goto(`/ticks/${TICK_SLUG}`)
+    const footer = page.getByTestId('site-footer')
+    await expect(footer).toBeVisible()
+    await expect(footer.getByRole('link', { name: 'Sources' })).toHaveAttribute('href', '/sources')
+    // Exact-match "About" — the lowercase "about" link in the
+    // disclaimer strip points at /about#medical and would otherwise
+    // collide with the column link.
+    await expect(footer.getByRole('link', { name: /^About$/ })).toHaveAttribute('href', '/about')
+    await expect(footer.getByRole('link', { name: /github\.com\/tickpedia/i })).toBeVisible()
+  })
+
   test('not-found state for an unknown slug', async ({ page }) => {
     await page.goto('/ticks/this-tick-does-not-exist')
     await expect(page.getByRole('heading', { name: /tick not found/i })).toBeVisible()

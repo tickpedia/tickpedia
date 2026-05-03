@@ -5,7 +5,7 @@ import { DesignShowcase } from './design/index.js'
 import { matchRoute, type MatchedRoute } from './routes/index.js'
 import { TickPage } from './pages/tick/TickPage.js'
 import { TickRangePage } from './pages/tick/TickRangePage.js'
-import { PageHeader } from './pages/shared/index.js'
+import { PageHeader, Footer } from './pages/shared/index.js'
 
 // Pathname-driven router. SPA — every path lives in one bundle, the
 // router below picks the page off `window.location.pathname` and the
@@ -171,20 +171,7 @@ function LegacyHome({ currentPath }: { currentPath: string }) {
         <Feed />
       </section>
 
-      <footer
-        className="ui"
-        style={{
-          padding: '24px 32px 40px',
-          color: 'var(--muted)',
-          fontSize: 12,
-          borderTop: '1px solid var(--rule)',
-        }}
-      >
-        Open source — MIT.{' '}
-        <a href="https://github.com/tickpedia/tickpedia" rel="noreferrer">
-          github.com/tickpedia/tickpedia
-        </a>
-      </footer>
+      <Footer />
     </div>
   )
 }

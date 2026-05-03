@@ -1,4 +1,4 @@
-import { PageHeader, Crumb, Stat, useDocumentHead } from '../shared/index.js'
+import { PageHeader, Crumb, Stat, Footer, useDocumentHead } from '../shared/index.js'
 import { Choropleth, RampLegend, LineChart } from '../../charts/index.js'
 import { pathFor } from '../../routes/index.js'
 import { useTick } from './data/useTick.js'
@@ -125,6 +125,8 @@ export function TickRangePage({ slug }: TickRangePageProps) {
           tickCommon={tick.commonName}
         />
       </section>
+
+      <Footer />
     </div>
   )
 }
@@ -178,6 +180,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="tp-page">
       <PageHeader active="ticks" />
       <div style={{ padding: '40px 32px' }}>{children}</div>
+      <Footer />
     </div>
   )
 }
