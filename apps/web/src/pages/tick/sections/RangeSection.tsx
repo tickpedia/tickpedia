@@ -25,14 +25,7 @@ export function RangeSection({ tickSlug, tickCommon, data, loading, error }: Ran
       </div>
       {error && <ErrorMessage message={error.message} />}
       {!error && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.3fr 1fr',
-            gap: 32,
-            alignItems: 'start',
-          }}
-        >
+        <div className="tp-range-grid" data-testid="range-grid">
           <div>
             <Choropleth
               data={fipsToData(data)}

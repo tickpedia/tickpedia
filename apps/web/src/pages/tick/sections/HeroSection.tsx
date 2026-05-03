@@ -24,16 +24,8 @@ export function HeroSection({ tick, establishedCounties, diseaseCount }: HeroSec
   }
 
   return (
-    <div
-      style={{
-        padding: '20px 32px 28px',
-        display: 'grid',
-        gridTemplateColumns: '240px 1fr 240px',
-        gap: 36,
-        alignItems: 'start',
-      }}
-    >
-      <div>
+    <div className="tp-hero" data-testid="tick-hero">
+      <div className="crest">
         <TickCrest
           size="hero"
           colors={colors}
@@ -43,43 +35,13 @@ export function HeroSection({ tick, establishedCounties, diseaseCount }: HeroSec
       </div>
       <div>
         <div className="ui eyebrow">Ixodidae · hard tick</div>
-        <h1
-          className="tp-serif"
-          style={{
-            fontSize: 56,
-            lineHeight: 1.02,
-            letterSpacing: '-0.025em',
-            margin: '10px 0 6px',
-          }}
-        >
-          {tick.commonName}
-        </h1>
-        <div
-          className="tp-serif"
-          style={{
-            fontSize: 22,
-            fontStyle: 'italic',
-            color: 'var(--muted)',
-            marginBottom: 18,
-          }}
-        >
-          {tick.scientificName}
-        </div>
+        <h1 className="tp-serif">{tick.commonName}</h1>
+        <div className="tp-serif scientific">{tick.scientificName}</div>
         {tick.oneLiner && (
-          <p
-            className="tp-serif"
-            style={{
-              fontSize: 19,
-              color: 'var(--ink-2)',
-              lineHeight: 1.5,
-              maxWidth: 560,
-            }}
-          >
-            {tick.oneLiner}
-          </p>
+          <p className="tp-serif lede">{tick.oneLiner}</p>
         )}
         <div
-          className="ui"
+          className="ui chips"
           style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}
         >
           <span className={`tp-chip danger-${tick.dangerLevel}`}>
@@ -98,7 +60,7 @@ export function HeroSection({ tick, establishedCounties, diseaseCount }: HeroSec
         </div>
       </div>
 
-      <aside className="hairline" style={{ padding: 16, background: 'var(--surface)' }}>
+      <aside className="hairline at-a-glance">
         <div className="ui eyebrow" style={{ marginBottom: 10 }}>
           At a glance
         </div>
