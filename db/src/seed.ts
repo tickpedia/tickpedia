@@ -115,10 +115,12 @@ await db
     })),
   )
   .onConflictDoUpdate({
-    target: ticks.slug,
+    // Conflict on scientificName (also unique) so a slug rename
+    // updates the existing row instead of inserting a duplicate.
+    target: ticks.scientificName,
     set: {
+      slug: sql`EXCLUDED.slug`,
       commonName: sql`EXCLUDED.common_name`,
-      scientificName: sql`EXCLUDED.scientific_name`,
       dangerLevel: sql`EXCLUDED.danger_level`,
       updatedAt: sql`now()`,
     },
@@ -174,7 +176,7 @@ console.log(`removal_techniques: ${CANONICAL_REMOVAL_TECHNIQUES.length} rows`)
 const [deer] = await db
   .select({ id: ticks.id })
   .from(ticks)
-  .where(sql`${ticks.slug} = 'ixodes-scapularis'`)
+  .where(sql`${ticks.slug} = 'blacklegged-tick'`)
   .limit(1)
 
 if (deer) {

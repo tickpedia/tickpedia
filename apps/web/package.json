@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && pnpm build:aliases && pnpm build:sitemap",
+    "build": "tsc -b && vite build && pnpm build:aliases && pnpm build:fallback && pnpm build:sitemap",
     "build:aliases": "tsx scripts/emit-alias-stubs.ts",
+    "build:fallback": "tsx scripts/copy-spa-fallback.ts",
     "build:sitemap": "tsx scripts/generate-sitemap.ts",
     "preview": "vite preview --port 5173",
     "lint": "eslint src/",

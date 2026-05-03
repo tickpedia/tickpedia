@@ -57,10 +57,10 @@ describe('App router shim', () => {
     expect(screen.getByTestId('design-showcase')).toBeInTheDocument()
   })
 
-  it('legacy home links to /design in the footer', () => {
+  it('legacy home shows the GitHub repo link in the footer', () => {
     window.history.pushState({}, '', '/')
     render(<App />)
-    const link = screen.getByRole('link', { name: /design system preview/i })
-    expect(link).toHaveAttribute('href', '/design')
+    const link = screen.getByRole('link', { name: /github\.com\/tickpedia\/tickpedia/i })
+    expect(link).toHaveAttribute('href', 'https://github.com/tickpedia/tickpedia')
   })
 })

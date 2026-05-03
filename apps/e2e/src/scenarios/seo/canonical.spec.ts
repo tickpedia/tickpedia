@@ -1,19 +1,27 @@
 import { test, expect } from '@playwright/test'
 
-// Canonical-link enforcement. Filled in as pages ship — today the
-// substrate ships only the alias stubs and the static sitemap, so
-// this file's only assertion is that the preview server responds.
-// As real pages land, add per-kind cases asserting
-// `<link rel="canonical">` matches the URL and that there's exactly
-// one canonical per page.
+// Canonical-link enforcement. Each shipped page must declare exactly
+// one `<link rel="canonical">` and it must match the public URL on
+// tickpedia.com. New page kinds get their canonical added here.
+
+const CANONICAL_CASES: ReadonlyArray<{ path: string; href: string }> = [
+  {
+    path: '/ticks/blacklegged-tick',
+    href: 'https://tickpedia.com/ticks/blacklegged-tick',
+  },
+  {
+    path: '/ticks/blacklegged-tick/range',
+    href: 'https://tickpedia.com/ticks/blacklegged-tick/range',
+  },
+]
 
 test.describe('seo · canonical links', () => {
-  test('preview server is up (placeholder until pages ship)', async ({ page }) => {
-    const res = await page.goto('/')
-    expect(res?.ok()).toBe(true)
-  })
-
-  test.skip('every canonical page declares <link rel="canonical"> matching its URL', async () => {
-    // Filled when real pages land
-  })
+  for (const { path, href } of CANONICAL_CASES) {
+    test(`${path} declares exactly one canonical → ${href}`, async ({ page }) => {
+      await page.goto(path)
+      const links = page.locator('link[rel="canonical"]')
+      await expect(links).toHaveCount(1)
+      await expect(links).toHaveAttribute('href', href)
+    })
+  }
 })

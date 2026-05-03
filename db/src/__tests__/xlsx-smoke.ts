@@ -79,7 +79,7 @@ console.log('\n─── 2. 2024-A.americanum-Surveillance-Map-Data.xlsx (single
     SourceComments: r['Source Comments'],
   }))
   const { rows: parsed, errors: parseErrors } = parseSingleTickRows(rows, {
-    tickSlug: 'amblyomma-americanum',
+    tickSlug: 'lone-star-tick',
     year: 2024,
   })
   console.log(`  parsed: ${parsed.length}, parse errors: ${parseErrors.length}`)

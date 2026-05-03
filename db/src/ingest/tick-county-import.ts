@@ -28,7 +28,7 @@ import { emptySummary, type IngestSummary } from './summary.js'
 export type TickStatus = 'established' | 'reported' | 'no_records'
 
 export interface TickCountyRow {
-  tickSlug: string // e.g. 'ixodes-scapularis'
+  tickSlug: string // e.g. 'blacklegged-tick'
   countyFips: string // 5-char, leading zero preserved
   year: number
   status: TickStatus
