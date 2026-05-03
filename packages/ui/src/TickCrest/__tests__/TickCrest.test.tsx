@@ -63,7 +63,8 @@ describe('TickCrest', () => {
         size="tile"
       />,
     )
-    const ellipse = container.querySelector('ellipse[rx="14"]')
+    // Body shape mirrors `tickSvg`: rx=16, ry=22 — see tick-art.ts.
+    const ellipse = container.querySelector('ellipse[rx="16"]')
     expect(ellipse).not.toBeNull()
     expect(ellipse!.getAttribute('fill')).toBe('#7a4a2a')
   })
@@ -75,9 +76,10 @@ describe('TickCrest', () => {
         size="tile"
       />,
     )
-    const body = container.querySelector('ellipse[rx="14"]')
+    const body = container.querySelector('ellipse[rx="16"]')
     expect(body!.getAttribute('fill')).toBe('#123456')
-    const head = container.querySelector('ellipse[rx="10"]')
+    // Head is a circle r=10 in the unified geometry.
+    const head = container.querySelector('circle[r="10"]')
     expect(head!.getAttribute('fill')).toBe('#abcdef')
   })
 
@@ -109,8 +111,8 @@ describe('TickCrest', () => {
 
   it('renders 8 leg paths', () => {
     const { container } = render(<TickCrest colors={COLORS} size="hero" />)
-    // legs sit inside a <g stroke-width="1.4"> block
-    const legGroup = container.querySelector('g[stroke-width="1.4"]')
+    // Legs sit inside a <g stroke-width="3"> block — same as `tickSvg`.
+    const legGroup = container.querySelector('g[stroke-width="3"]')
     expect(legGroup).not.toBeNull()
     const paths = legGroup!.querySelectorAll('path')
     expect(paths.length).toBe(8)

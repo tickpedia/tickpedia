@@ -1,25 +1,28 @@
-import { legPath } from './leg-path.js'
-
-// Eight hairline legs radiating from the body. Adult Ixodidae have
-// eight; the crest always renders all eight regardless of life-stage.
-//
-// `color` should be the editorial leg color (or DEFAULT_TICK_ART.legColor
-// when null) — resolved by the caller.
-
-const LEG_ANGLES = [-32, -18, 18, 32] as const
+// Eight straight legs radiating from the body. Geometry mirrors
+// `tickSvg` / `tickCrestSvg` in tick-art.ts so the React TickCrest,
+// the inline admin-preview TickArt, and the OG image generator render
+// the same leg paths.
 
 export interface LegsProps {
   color: string
 }
 
+const LEG_PATHS: ReadonlyArray<string> = [
+  'M36 50 L28 46',
+  'M34 60 L24 60',
+  'M34 70 L26 76',
+  'M38 80 L32 88',
+  'M64 50 L72 46',
+  'M66 60 L76 60',
+  'M66 70 L74 76',
+  'M62 80 L68 88',
+]
+
 export function Legs({ color }: LegsProps) {
   return (
-    <g stroke={color} strokeWidth="1.4" strokeLinecap="round" fill="none">
-      {LEG_ANGLES.map((angle) => (
-        <g key={angle}>
-          <path d={legPath(50, 56, angle, 'L')} />
-          <path d={legPath(50, 56, -angle, 'R')} />
-        </g>
+    <g stroke={color} strokeWidth="3" strokeLinecap="round" fill="none">
+      {LEG_PATHS.map((d) => (
+        <path key={d} d={d} />
       ))}
     </g>
   )

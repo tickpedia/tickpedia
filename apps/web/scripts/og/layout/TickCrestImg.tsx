@@ -1,13 +1,14 @@
 import type { CSSProperties } from 'react'
 import { Resvg } from '@resvg/resvg-js'
-import { tickSvg, type TickArtColors } from '@tickpedia/ui'
+import { tickCrestSvg, type TickArtColors } from '@tickpedia/ui'
 
-// Pre-rasterise the @tickpedia/ui tick SVG at OG resolution and embed
-// it as a PNG data URL in a satori <img>. satori can render simple
-// SVG inline, but the tick illustration is paired with an outer crest
-// frame in real life — and once we're rasterising, going through resvg
-// gives us a stable PNG that satori treats as opaque artwork without
-// having to teach satori our SVG idioms.
+// Pre-rasterise the @tickpedia/ui tick crest at OG resolution and
+// embed it as a PNG data URL in a satori <img>. The crest SVG comes
+// from `tickCrestSvg` in @tickpedia/ui — the same source the React
+// TickCrest renders from — so the OG card and the on-page hero show
+// identical geometry. satori can't path-attach text reliably, so we
+// rasterise via resvg and let satori treat the result as opaque
+// artwork.
 //
 // The returned <img> is an absolutely-sized 360×360 element ready to
 // drop into the tick template's left column.
@@ -18,7 +19,7 @@ const CREST_PX = 320
 export function tickCrestPng(colors: TickArtColors): string {
   // Scale the 100x100 viewBox up to 320 so the silhouette has real
   // pixels. resvg's `fitTo: { mode: 'width' }` does the upscale.
-  const svg = tickSvg(colors)
+  const svg = tickCrestSvg(colors)
   const png = new Resvg(svg, {
     background: 'transparent',
     fitTo: { mode: 'width', value: CREST_PX },
