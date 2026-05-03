@@ -1,0 +1,10 @@
+# tickpedia.com — open under MIT, indexable, no surprises.
+# /search is the only path we keep out of the index — it's a query
+# surface, not a content URL, and we don't want it rotting search
+# results with auto-generated junk.
+
+User-agent: *
+Allow: /
+Disallow: /search
+
+Sitemap: https://tickpedia.com/sitemap.xml

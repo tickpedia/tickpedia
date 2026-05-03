@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && pnpm build:aliases && pnpm build:sitemap",
+    "build:aliases": "tsx scripts/emit-alias-stubs.ts",
+    "build:sitemap": "tsx scripts/generate-sitemap.ts",
     "preview": "vite preview --port 5173",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
@@ -28,6 +30,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^3.0.0",
     "jsdom": "^25.0.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",
     "vitest": "^3.0.0"

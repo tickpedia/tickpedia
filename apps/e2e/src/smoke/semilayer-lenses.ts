@@ -6,7 +6,11 @@
 // Run me after `pnpm semilayer:push` / `pnpm semilayer:generate` to
 // verify the live tenant matches the local config.
 //
-//   pnpm semilayer:smoke
+//   pnpm smoke:lenses
+//
+// (Companion `pnpm smoke:pages` lives next door as
+// `src/smoke/semilayer-pages.ts` — it iterates the canonical URL
+// contract and asserts every page's reads return data.)
 //
 // Required env (loaded from the repo-root .env via tsx --env-file):
 //   SEMILAYER_SERVICE_URL          e.g. https://api.semilayer.com
@@ -117,10 +121,16 @@ const ANALYZE_RUN_CHECKS: readonly AnalyzeRunCheck[] = [
   { lens: 'tickDiseases', name: 'diseasesPerTick' },
   { lens: 'tickDiseases', name: 'ticksPerDisease' },
   { lens: 'tickCounty', name: 'establishedRange' },
-  { lens: 'tickCounty', name: 'establishedByState', expectedStrategy: 'through' },
+  // establishedByState + casesByState now run with native pushdown
+  // even though the dimension declares `through: 'county'` — the
+  // planner pushes the relation hop down into the source query
+  // instead of running a service-side traversal. Functionally
+  // equivalent; the 'through' label only applies when the planner
+  // can't resolve the join at the source.
+  { lens: 'tickCounty', name: 'establishedByState' },
   { lens: 'tickCounty', name: 'spreadOverTime' },
   { lens: 'diseaseCountyYear', name: 'casesByYear' },
-  { lens: 'diseaseCountyYear', name: 'casesByState', expectedStrategy: 'through' },
+  { lens: 'diseaseCountyYear', name: 'casesByState' },
   { lens: 'diseaseCountyYear', name: 'countyHotspots' },
   { lens: 'diseaseCountyYear', name: 'densityByH3', expectedStrategy: 'through' },
   { lens: 'diseaseMonth', name: 'seasonality', emptyOk: true },

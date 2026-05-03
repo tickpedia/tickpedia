@@ -5,5 +5,9 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "playwright.config.ts"]
+  "include": [
+    "src/**/*",
+    "playwright.config.ts",
+    "../web/src/routes/**/*"
+  ]
 }

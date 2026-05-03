@@ -8,7 +8,9 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
     "install-browsers": "playwright install --with-deps chromium",
-    "smoke:semilayer": "tsx --env-file=../../.env src/semilayer-smoke.ts",
+    "smoke:lenses": "tsx --env-file=../../.env src/smoke/semilayer-lenses.ts",
+    "smoke:pages": "tsx --env-file=../../.env src/smoke/semilayer-pages.ts",
+    "smoke:semilayer": "pnpm smoke:lenses",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
