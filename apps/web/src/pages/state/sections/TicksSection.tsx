@@ -2,8 +2,10 @@ import { pathFor } from '../../../routes/index.js'
 import type { StateTickRow } from '../data/useStateTicks.js'
 
 // "Ticks established here" — same monogram-card rail as the tick
-// page's DiseasesSection. Each card links to /ticks/[slug]; a small
-// prevalence chip carries the editorial signal from `tick_state`.
+// page's DiseasesSection. Each card links to /ticks/[slug]; the
+// prevalence chip is derived from CDC's per-county establishment
+// data (high ≥30 counties, moderate 10–29, low 1–9), and a second
+// chip carries the raw established-county count as the receipt.
 
 export interface TicksSectionProps {
   rows: readonly StateTickRow[]
@@ -124,9 +126,18 @@ function TickCard({ row }: { row: StateTickRow }) {
             <span
               className="tp-chip"
               style={{ fontSize: 10, color: 'var(--muted)' }}
-              title="Editorial prevalence in this state"
+              title="Derived from established-county count"
             >
               {row.prevalence}
+            </span>
+          )}
+          {row.establishedCounties > 0 && (
+            <span
+              className="tp-chip"
+              style={{ fontSize: 10, color: 'var(--muted)' }}
+              title="Counties where this tick is established (CDC)"
+            >
+              {row.establishedCounties} {row.establishedCounties === 1 ? 'county' : 'counties'}
             </span>
           )}
           {row.peakMonths && row.peakMonths.length > 0 && (

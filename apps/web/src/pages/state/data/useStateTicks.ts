@@ -2,12 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { beam } from '../../../lib/beam.js'
 import { useSSRData } from '../../../ssr/SSRDataProvider.js'
 import { stateTicksCacheKey } from './cache-keys.js'
+import {
+  readEstablishedBuckets,
+  rollupStateTicks,
+  type AnalyzeResult,
+} from './state-ticks-rollup.js'
 
 export { stateTicksCacheKey } from './cache-keys.js'
 
-// Ticks established (or reported) in a given state. Joins the
-// `tick_state` editorial surveillance table with `ticks` for the
-// human-readable name + slug + scientific binomial.
+// Ticks established (or reported) in a given state. Reads from
+// `tickCounty.establishedByState` (CDC-grade, ~1,900 county-tick
+// rows) rather than the editorial `tick_state` table, which is
+// essentially empty in production. The rollup helper turns the
+// (tickId, stateFips, counties) buckets into per-state rows with a
+// derived prevalence chip.
 
 export interface StateTickRow {
   id: number
@@ -15,7 +23,10 @@ export interface StateTickRow {
   commonName: string
   scientificName: string
   oneLiner: string | null
-  prevalence: string | null
+  prevalence: 'high' | 'moderate' | 'low' | null
+  /** Established county count in this state — rendered on the card. */
+  establishedCounties: number
+  /** No real source for this today; kept null for forward compat. */
   peakMonths: number[] | null
 }
 
@@ -50,43 +61,33 @@ export function useStateTicks(stateFips: string | null): UseStateTicksResult {
     setState({ rows: [], loading: true, error: null })
 
     Promise.all([
-      beam.tickState.query({
-        where: { stateFips },
-        fields: ['tickId', 'prevalence', 'peakMonths'],
-        limit: 50,
-      }),
+      // The analyze hops `stateFips through county`, so the where
+      // filter doesn't push down. Read the full grid and slice
+      // client-side via the rollup helper.
+      beam.tickCounty.analyze.establishedByState({}) as Promise<
+        AnalyzeResult<{ tickId: unknown; stateFips: unknown }, { counties: number }>
+      >,
       beam.ticks.query({
         fields: ['id', 'slug', 'commonName', 'scientificName', 'oneLiner'],
         limit: 100,
       }),
     ])
-      .then(([joinRes, ticksRes]) => {
+      .then(([analyzeRes, ticksRes]) => {
         if (cancelled) return
-        const meta = new Map<number, { prevalence: string | null; peakMonths: number[] | null }>()
-        for (const row of joinRes.rows) {
-          meta.set(row.tickId, {
-            prevalence: row.prevalence ?? null,
-            peakMonths: (row.peakMonths as unknown as number[] | null | undefined) ?? null,
-          })
-        }
-        const rows: StateTickRow[] = ticksRes.rows
-          .filter((t) => meta.has(t.id))
-          .map((t) => {
-            const m = meta.get(t.id)!
-            return {
-              id: t.id,
-              slug: t.slug ?? '',
-              commonName: t.commonName ?? '',
-              scientificName: t.scientificName ?? '',
-              oneLiner: t.oneLiner ?? null,
-              prevalence: m.prevalence,
-              peakMonths: m.peakMonths,
-            }
-          })
-          .sort((a, b) => prevalenceRank(b.prevalence) - prevalenceRank(a.prevalence) ||
-            a.commonName.localeCompare(b.commonName))
+        const buckets = readEstablishedBuckets(analyzeRes)
+        const rollup = rollupStateTicks(
+          stateFips,
+          buckets,
+          ticksRes.rows.map((t) => ({
+            id: t.id,
+            slug: t.slug ?? '',
+            commonName: t.commonName ?? '',
+            scientificName: t.scientificName ?? '',
+            oneLiner: t.oneLiner ?? null,
+          })),
+        )
         resolvedForRef.current = stateFips
-        setState({ rows, loading: false, error: null })
+        setState({ rows: rollup, loading: false, error: null })
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -100,13 +101,4 @@ export function useStateTicks(stateFips: string | null): UseStateTicksResult {
   }, [stateFips])
 
   return state
-}
-
-function prevalenceRank(p: string | null): number {
-  switch ((p ?? '').toLowerCase()) {
-    case 'high': return 3
-    case 'moderate': return 2
-    case 'low': return 1
-    default: return 0
-  }
 }

@@ -724,39 +724,70 @@ async function fetchStateTopStats(
   states: StateRowMin[],
 ): Promise<Map<string, { tickCount: number; countyEstablished: number; diseaseCount: number }>> {
   const out = new Map<string, { tickCount: number; countyEstablished: number; diseaseCount: number }>()
-  await Promise.all(
-    states.map(async (s) => {
-      try {
-        const [countyRes, diseaseRes] = await Promise.all([
-          client.analyze('tickCounty', 'establishedByState', {
-            where: { stateFips: s.fips },
-          }) as Promise<AnalyzeResult<{ stateFips: unknown; tickId?: unknown }, { counties: number }>>,
-          client.analyze('diseaseCountyYear', 'casesByState', {
-            where: { stateFips: s.fips },
-          }) as Promise<AnalyzeResult<{ stateFips: unknown; diseaseId?: unknown }, { total: number; diseases?: number }>>,
-        ])
-        let countyEstablished = 0
-        for (const b of countyRes.buckets) {
-          countyEstablished += b.measures.counties ?? 0
-        }
-        let totalCases = 0
-        const diseaseSet = new Set<string>()
-        for (const b of diseaseRes.buckets) {
-          totalCases += b.measures.total ?? 0
-          if (b.dims.diseaseId !== undefined) {
-            diseaseSet.add(String(b.dims.diseaseId))
-          }
-        }
-        out.set(s.fips, {
-          tickCount: 0,
-          countyEstablished,
-          diseaseCount: diseaseSet.size,
-        })
-      } catch {
-        out.set(s.fips, { tickCount: 0, countyEstablished: 0, diseaseCount: 0 })
+  for (const s of states) {
+    out.set(s.fips, { tickCount: 0, countyEstablished: 0, diseaseCount: 0 })
+  }
+
+  // Both analyses hop stateFips through `county`, so the where filter
+  // can't push down. Read each grid once and aggregate client-side.
+  try {
+    const tickRes = (await client.analyze('tickCounty', 'establishedByState', {})) as AnalyzeResult<
+      { tickId: unknown; stateFips: unknown },
+      { counties: number }
+    >
+    const tickIdsByState = new Map<string, Set<number>>()
+    const countiesByState = new Map<string, number>()
+    for (const b of tickRes.buckets) {
+      const fips = String(b.dims.stateFips ?? '')
+      const tickId = Number(b.dims.tickId)
+      const counties = b.measures.counties ?? 0
+      if (!fips || !Number.isFinite(tickId) || counties <= 0) continue
+      let set = tickIdsByState.get(fips)
+      if (!set) {
+        set = new Set<number>()
+        tickIdsByState.set(fips, set)
       }
-    }),
-  )
+      set.add(tickId)
+      countiesByState.set(fips, (countiesByState.get(fips) ?? 0) + counties)
+    }
+    for (const s of states) {
+      const cur = out.get(s.fips)!
+      cur.tickCount = tickIdsByState.get(s.fips)?.size ?? 0
+      cur.countyEstablished = countiesByState.get(s.fips) ?? 0
+    }
+  } catch (err) {
+    console.warn(
+      `⚠ tickCounty.establishedByState failed: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
+
+  try {
+    const diseaseRes = (await client.analyze('diseaseCountyYear', 'casesByState', {})) as AnalyzeResult<
+      { diseaseId: unknown; stateFips: unknown },
+      { total: number }
+    >
+    const diseasesByState = new Map<string, Set<number>>()
+    for (const b of diseaseRes.buckets) {
+      const fips = String(b.dims.stateFips ?? '')
+      const diseaseId = Number(b.dims.diseaseId)
+      const total = b.measures.total ?? 0
+      if (!fips || !Number.isFinite(diseaseId) || total <= 0) continue
+      let set = diseasesByState.get(fips)
+      if (!set) {
+        set = new Set<number>()
+        diseasesByState.set(fips, set)
+      }
+      set.add(diseaseId)
+    }
+    for (const s of states) {
+      const cur = out.get(s.fips)!
+      cur.diseaseCount = diseasesByState.get(s.fips)?.size ?? 0
+    }
+  } catch (err) {
+    console.warn(
+      `⚠ diseaseCountyYear.casesByState failed: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
   return out
 }
 

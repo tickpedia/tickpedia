@@ -15,6 +15,10 @@ import {
   stateCountyHotspotsCacheKey,
   statesIndexCacheKey,
 } from '../../pages/state/data/cache-keys.js'
+import {
+  readEstablishedBuckets,
+  rollupStateTicks,
+} from '../../pages/state/data/state-ticks-rollup.js'
 import { buildStateHead, buildStatesIndexHead } from '../../pages/state/seo.js'
 
 // Build-time prefetch for /states, /states/[slug], and the three
@@ -52,22 +56,21 @@ export async function prefetchStatePage(
   const stateFips = state.fips
 
   const [
-    tickJoinRes,
+    tickEstablishedRes,
     ticksRes,
     diseaseAnalyzeRes,
     diseasesRes,
     countiesRes,
     hotspotsRes,
   ] = await Promise.all([
-    client.query('tickState', {
-      where: { stateFips },
-      fields: ['tickId', 'prevalence', 'peakMonths'],
-      limit: 50,
-    }) as Promise<QueryResponse<{
-      tickId: number
-      prevalence: string | null
-      peakMonths: number[] | null
-    }>>,
+    // The editorial `tickState` table is essentially empty in
+    // production; CDC's tickCounty grid (~1,900 rows) is the real
+    // signal. stateFips is hopped through `county`, so the where
+    // filter can't push down — read the full grid and slice via the
+    // rollup helper below.
+    client.analyze('tickCounty', 'establishedByState', {}) as Promise<
+      AnalyzeResult<{ tickId: unknown; stateFips: unknown }, { counties: number }>
+    >,
     client.query('ticks', {
       fields: ['id', 'slug', 'commonName', 'scientificName', 'oneLiner'],
       limit: 100,
@@ -111,30 +114,21 @@ export async function prefetchStatePage(
     }>>,
   ])
 
-  // Ticks rollup
-  const tickMeta = new Map<number, { prevalence: string | null; peakMonths: number[] | null }>()
-  for (const r of tickJoinRes.rows) {
-    tickMeta.set(r.tickId, {
-      prevalence: r.prevalence ?? null,
-      peakMonths: r.peakMonths ?? null,
-    })
-  }
-  const tickRows: StateTickRow[] = ticksRes.rows
-    .filter((t) => tickMeta.has(t.id))
-    .map((t) => {
-      const m = tickMeta.get(t.id)!
-      return {
-        id: t.id,
-        slug: t.slug ?? '',
-        commonName: t.commonName ?? '',
-        scientificName: t.scientificName ?? '',
-        oneLiner: t.oneLiner ?? null,
-        prevalence: m.prevalence,
-        peakMonths: m.peakMonths,
-      }
-    })
-    .sort((a, b) => prevalenceRank(b.prevalence) - prevalenceRank(a.prevalence) ||
-      a.commonName.localeCompare(b.commonName))
+  // Ticks rollup — derived from CDC tickCounty buckets, joined to
+  // editorial ticks for slug/name/oneLiner, then narrowed to this
+  // state.
+  const buckets = readEstablishedBuckets(tickEstablishedRes)
+  const tickRows: StateTickRow[] = rollupStateTicks(
+    stateFips,
+    buckets,
+    ticksRes.rows.map((t) => ({
+      id: t.id,
+      slug: t.slug ?? '',
+      commonName: t.commonName ?? '',
+      scientificName: t.scientificName ?? '',
+      oneLiner: t.oneLiner ?? null,
+    })),
+  )
 
   // Diseases rollup — filter (diseaseId, stateFips) buckets to this state.
   const diseaseStats = new Map<number, { total: number; counties: number; yearsCovered: number }>()
@@ -234,11 +228,3 @@ export async function prefetchStatesIndex(client: BeamClient): Promise<StatesInd
   }
 }
 
-function prevalenceRank(p: string | null): number {
-  switch ((p ?? '').toLowerCase()) {
-    case 'high': return 3
-    case 'moderate': return 2
-    case 'low': return 1
-    default: return 0
-  }
-}

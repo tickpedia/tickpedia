@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   statesQuery: vi.fn(),
-  tickStateQuery: vi.fn(),
+  establishedByState: vi.fn(),
   ticksQuery: vi.fn(),
   casesByState: vi.fn(),
   diseasesQuery: vi.fn(),
@@ -14,7 +14,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../lib/beam.js', () => ({
   beam: {
     states: { query: mocks.statesQuery },
-    tickState: { query: mocks.tickStateQuery },
+    tickCounty: {
+      analyze: {
+        establishedByState: mocks.establishedByState,
+      },
+    },
     ticks: { query: mocks.ticksQuery },
     diseaseCountyYear: {
       analyze: {
@@ -41,10 +45,16 @@ describe('StatePage', () => {
     mocks.statesQuery.mockResolvedValue({
       rows: [{ fips: '23', code: 'ME', slug: 'maine', name: 'Maine' }],
     })
-    mocks.tickStateQuery.mockResolvedValue({
-      rows: [
-        { tickId: 1, prevalence: 'high', peakMonths: [5, 6, 7] as unknown as number },
-        { tickId: 2, prevalence: 'moderate', peakMonths: [5, 6, 7, 8] as unknown as number },
+    // tickCounty.establishedByState returns (tickId, stateFips, counties)
+    // buckets — the rollup helper filters to this state and derives
+    // a prevalence chip from the county count (≥30 high, 10–29 mod,
+    // 1–9 low).
+    mocks.establishedByState.mockResolvedValue({
+      buckets: [
+        { dims: { tickId: 1, stateFips: '23' }, measures: { counties: 14 } },
+        { dims: { tickId: 2, stateFips: '23' }, measures: { counties: 5 } },
+        // A different state — must be filtered out client-side.
+        { dims: { tickId: 99, stateFips: '36' }, measures: { counties: 30 } },
       ],
     })
     mocks.ticksQuery.mockResolvedValue({
@@ -87,7 +97,7 @@ describe('StatePage', () => {
 
   it('renders the loading state while states.query resolves', () => {
     mocks.statesQuery.mockReturnValue(new Promise(() => {}))
-    mocks.tickStateQuery.mockResolvedValue({ rows: [] })
+    mocks.establishedByState.mockResolvedValue({ buckets: [] })
     mocks.ticksQuery.mockResolvedValue({ rows: [] })
     mocks.casesByState.mockResolvedValue({ buckets: [] })
     mocks.diseasesQuery.mockResolvedValue({ rows: [] })
@@ -100,7 +110,7 @@ describe('StatePage', () => {
 
   it('renders the not-found state for an unknown slug', async () => {
     mocks.statesQuery.mockResolvedValue({ rows: [] })
-    mocks.tickStateQuery.mockResolvedValue({ rows: [] })
+    mocks.establishedByState.mockResolvedValue({ buckets: [] })
     mocks.ticksQuery.mockResolvedValue({ rows: [] })
     mocks.casesByState.mockResolvedValue({ buckets: [] })
     mocks.diseasesQuery.mockResolvedValue({ rows: [] })
