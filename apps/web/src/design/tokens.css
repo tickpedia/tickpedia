@@ -526,6 +526,25 @@
   color: var(--bg);
   border-color: var(--ink);
 }
+/* Chip rendered as `<a>` — strip the underline + ink up the border on hover. */
+a.tp-chip,
+.tp-chip-link {
+  text-decoration: none;
+  cursor: pointer;
+}
+a.tp-chip:hover,
+.tp-chip-link:hover {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+
+/* Sticky-nav-aware anchor scrolling. The .tp-nav is position: sticky
+ * with ~52px height; without scroll-margin a #diseases / #range jump
+ * lands the section heading underneath the nav.
+ */
+.tp-section[id] {
+  scroll-margin-top: 64px;
+}
 
 .tp-table {
   width: 100%;

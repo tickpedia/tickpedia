@@ -11,7 +11,14 @@ export {
   RadialSeasonality,
   type RadialSeasonalityProps,
 } from './RadialSeasonality/index.js'
-export { Choropleth, type ChoroplethProps } from './Choropleth/index.js'
+export {
+  Choropleth,
+  STATES_BY_USPS,
+  stateNameFor,
+  stateSlugFor,
+  type ChoroplethProps,
+  type UspsState,
+} from './Choropleth/index.js'
 export {
   HexHeatmap,
   synthesizeHexCells,

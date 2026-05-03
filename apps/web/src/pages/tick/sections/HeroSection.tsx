@@ -44,18 +44,29 @@ export function HeroSection({ tick, establishedCounties, diseaseCount }: HeroSec
           className="ui chips"
           style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}
         >
-          <span className={`tp-chip danger-${tick.dangerLevel}`}>
+          <span
+            className={`tp-chip danger-${tick.dangerLevel}`}
+            title={dangerExplainer(tick.dangerLevel)}
+          >
             {dangerLabel(tick.dangerLevel)}
           </span>
-          {diseaseCount !== null && (
-            <span className="tp-chip">
+          {diseaseCount !== null && diseaseCount > 0 && (
+            <a
+              className="tp-chip tp-chip-link"
+              href="#diseases"
+              title="Jump to the diseases this tick carries"
+            >
               {diseaseCount === 1 ? 'Carries 1 disease' : `Carries ${diseaseCount} diseases`}
-            </span>
+            </a>
           )}
           {establishedCounties !== null && establishedCounties > 0 && (
-            <span className="tp-chip">
+            <a
+              className="tp-chip tp-chip-link"
+              href="#range"
+              title="Jump to the established range map"
+            >
               Established · {establishedCounties.toLocaleString()} counties
-            </span>
+            </a>
           )}
         </div>
       </div>
@@ -85,4 +96,14 @@ function dangerLabel(level: 'low' | 'medium' | 'high'): string {
   if (level === 'high') return 'High danger'
   if (level === 'medium') return 'Moderate'
   return 'Low danger'
+}
+
+function dangerExplainer(level: 'low' | 'medium' | 'high'): string {
+  if (level === 'high') {
+    return 'High danger — primary vector for one or more serious illnesses; bite risk is elevated where established.'
+  }
+  if (level === 'medium') {
+    return 'Moderate — known disease vector but bite rates and prevalence vary by region.'
+  }
+  return 'Low danger — limited disease transmission risk; rarely bites humans.'
 }

@@ -43,4 +43,60 @@ describe('Choropleth', () => {
     const labels = Array.from(container.querySelectorAll('text')).filter((t) => t.textContent === 'cases')
     expect(labels.length).toBe(0)
   })
+
+  it('renders cells as plain <g> when no linkFor is provided', () => {
+    const { container } = render(<Choropleth data={{ ME: 1 }} />)
+    expect(container.querySelectorAll('a[data-state-code]').length).toBe(0)
+    expect(container.querySelectorAll('g[data-state-code]').length).toBe(51)
+  })
+
+  it('wraps cells in <a> when linkFor returns a URL', () => {
+    const { container } = render(
+      <Choropleth
+        data={{ ME: 9, MA: 4 }}
+        linkFor={(code) => `/states/${code.toLowerCase()}`}
+      />,
+    )
+    const links = container.querySelectorAll('a[data-state-code]')
+    expect(links.length).toBe(51)
+    const me = container.querySelector('a[data-state-code="ME"]')
+    expect(me?.getAttribute('href')).toBe('/states/me')
+  })
+
+  it('skips the link wrapper when linkFor returns null for a code', () => {
+    const { container } = render(
+      <Choropleth
+        data={{ ME: 9 }}
+        linkFor={(code) => (code === 'ME' ? '/states/maine' : null)}
+      />,
+    )
+    expect(container.querySelector('a[data-state-code="ME"]')).not.toBeNull()
+    // Non-ME cells stay as <g>.
+    expect(container.querySelector('g[data-state-code="MA"]')).not.toBeNull()
+    expect(container.querySelector('a[data-state-code="MA"]')).toBeNull()
+  })
+
+  it('emits an SVG <title> when titleFor returns a string', () => {
+    const { container } = render(
+      <Choropleth
+        data={{ ME: 9 }}
+        titleFor={(code, v) => `${code}: ${v}`}
+      />,
+    )
+    const titles = Array.from(container.querySelectorAll('title'))
+    expect(titles.length).toBe(51)
+    expect(titles.find((t) => t.textContent === 'ME: 9')).toBeTruthy()
+    expect(titles.find((t) => t.textContent === 'CA: 0')).toBeTruthy()
+  })
+
+  it('omits the <title> when titleFor returns null for a code', () => {
+    const { container } = render(
+      <Choropleth
+        data={{ ME: 9 }}
+        titleFor={(code, v) => (v > 0 ? `${code}: ${v}` : null)}
+      />,
+    )
+    // Only ME has v>0, so only one title should render.
+    expect(container.querySelectorAll('title').length).toBe(1)
+  })
 })

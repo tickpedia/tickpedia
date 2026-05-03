@@ -13,7 +13,7 @@ export interface DiseasesSectionProps {
 
 export function DiseasesSection({ rows, loading, error }: DiseasesSectionProps) {
   return (
-    <section className="tp-section">
+    <section id="diseases" className="tp-section">
       <div className="head">
         <h2 className="tp-serif">Diseases it carries</h2>
         <span className="meta">{loading ? 'loading…' : `${rows.length} known`}</span>

@@ -1,4 +1,4 @@
-import { Choropleth } from '../../../charts/index.js'
+import { Choropleth, stateNameFor, stateSlugFor } from '../../../charts/index.js'
 import { RampLegend } from '../../../charts/index.js'
 import { pathFor } from '../../../routes/index.js'
 import type { TickRangeData } from '../data/useTickRange.js'
@@ -16,7 +16,7 @@ export interface RangeSectionProps {
 
 export function RangeSection({ tickSlug, tickCommon, data, loading, error }: RangeSectionProps) {
   return (
-    <section className="tp-section">
+    <section id="range" className="tp-section">
       <div className="head">
         <h2 className="tp-serif">Where it’s established</h2>
         <a className="ui meta" href={pathFor('tick-range', { slug: tickSlug })}>
@@ -33,6 +33,15 @@ export function RangeSection({ tickSlug, tickCommon, data, loading, error }: Ran
               height={300}
               ariaLabel={`${tickCommon} established range`}
               label="Counties established"
+              linkFor={(code) => {
+                const slug = stateSlugFor(code)
+                return slug ? `/states/${slug}` : null
+              }}
+              titleFor={(code, v) => {
+                const name = stateNameFor(code)
+                if (v <= 0) return `${name} — no established counties`
+                return `${name} — ${v.toLocaleString()} ${v === 1 ? 'county' : 'counties'} established`
+              }}
             />
             <div
               style={{
