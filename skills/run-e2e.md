@@ -27,6 +27,24 @@ If port 4173 is in use:
 E2E_WEB_PORT=4400 pnpm e2e
 ```
 
+## Fast inner loop (local only)
+
+The default flow rebuilds `apps/web` every run (~60-90s on a warm tenant).
+Once `dist/` is current, skip the rebuild:
+
+```bash
+E2E_SKIP_BUILD=1 pnpm e2e                 # serve existing dist/, ~3-5s
+```
+
+Or leave a preview running and re-run specs against it:
+
+```bash
+pnpm --filter @tickpedia/web preview      # in one terminal
+pnpm e2e                                  # in another (reuses the server)
+```
+
+Both paths only apply locally — `CI=true` always boots a fresh build.
+
 ## Debugging a failure
 
 - **HTML report:** `apps/e2e/playwright-report/index.html` opens

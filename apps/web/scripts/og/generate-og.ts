@@ -190,7 +190,12 @@ async function main(): Promise<void> {
   // 3. Walk canonical URLs + render each.
   const allUrls = await listCanonicalUrls(client)
 
-  const sampledCounties = sampleCounties(allUrls, countyTopCases, fullMode ? null : COUNTY_SAMPLE)
+  const sampledCounties = sampleCounties(
+    allUrls,
+    countyTopCases,
+    countiesByKey,
+    fullMode ? null : COUNTY_SAMPLE,
+  )
   const urlsToRender = allUrls.filter((u) => {
     if (u.kind !== 'county') return true
     const key = `${u.parentSlug}/${u.slug}`
@@ -876,9 +881,18 @@ function stateSubDescription(kind: string, name: string): string {
   }
 }
 
+// County URLs that the e2e SEO contract pins by name
+// (apps/e2e/src/scenarios/seo/og.spec.ts). These are emitted regardless
+// of the case-load sample so the contract can't silently regress when
+// surveillance numbers shift.
+const PINNED_COUNTY_KEYS: ReadonlySet<string> = new Set([
+  'maine/cumberland',
+])
+
 function sampleCounties(
   urls: readonly CanonicalUrl[],
   topCases: Map<string, number>,
+  countiesByKey: Map<string, CountyRowMin>,
   cap: number | null,
 ): Set<string> {
   const countyKeys: Array<{ key: string; rank: number }> = []
@@ -886,21 +900,18 @@ function sampleCounties(
     if (url.kind !== 'county') continue
     if (!url.parentSlug || !url.slug) continue
     if (url.parentSlug === 'unknown-state') continue
-    const fips = guessFips(url.parentSlug, url.slug, topCases)
-    countyKeys.push({
-      key: `${url.parentSlug}/${url.slug}`,
-      rank: fips ?? 0,
-    })
+    const key = `${url.parentSlug}/${url.slug}`
+    const fips = countiesByKey.get(key)?.fips
+    const rank = fips ? topCases.get(fips) ?? 0 : 0
+    countyKeys.push({ key, rank })
   }
   if (cap === null) return new Set(countyKeys.map((c) => c.key))
   countyKeys.sort((a, b) => b.rank - a.rank)
-  return new Set(countyKeys.slice(0, cap).map((c) => c.key))
-}
-
-/** topCases is keyed by county FIPS, but URLs only carry slug — best-effort match.
- *  Keys we don't recognise rank 0 and fall outside the sample cap. */
-function guessFips(_state: string, _county: string, _topCases: Map<string, number>): number | null {
-  return null
+  const picked = new Set(countyKeys.slice(0, cap).map((c) => c.key))
+  for (const key of PINNED_COUNTY_KEYS) {
+    if (countiesByKey.has(key)) picked.add(key)
+  }
+  return picked
 }
 
 export function pathToOgFile(distDir: string, ogPath: string): string {
