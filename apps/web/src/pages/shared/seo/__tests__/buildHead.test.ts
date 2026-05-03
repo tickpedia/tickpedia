@@ -21,8 +21,32 @@ describe('buildHeadHtml', () => {
       canonicalPath: '/ticks/x',
     })
     expect(html).toContain(`<meta property="og:url" content="${DEFAULT_ORIGIN}/ticks/x">`)
-    expect(html).toContain(`<meta property="og:image" content="${DEFAULT_ORIGIN}${DEFAULT_OG_IMAGE_PATH}">`)
+    // Per-page OG image is derived from the canonical path by default;
+    // the site-wide DEFAULT_OG_IMAGE_PATH is only the last-resort
+    // fallback for canonical paths that don't map to a clean filename.
+    expect(html).toContain(`<meta property="og:image" content="${DEFAULT_ORIGIN}/og/ticks/x.png">`)
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image">')
+  })
+
+  it('falls back to the site-wide default when the canonical path has no per-page mapping', () => {
+    const html = buildHeadHtml({
+      title: 'Test',
+      description: 'Test description',
+      // A canonical path that ogPathFor refuses (querystring) — falls
+      // through to the site default.
+      canonicalPath: '/search?q=foo',
+    })
+    expect(html).toContain(`<meta property="og:image" content="${DEFAULT_ORIGIN}${DEFAULT_OG_IMAGE_PATH}">`)
+  })
+
+  it('honours a per-page ogImagePath override', () => {
+    const html = buildHeadHtml({
+      title: 'Test',
+      description: 'Test description',
+      canonicalPath: '/ticks/x',
+      ogImagePath: '/og/custom/override.png',
+    })
+    expect(html).toContain(`<meta property="og:image" content="${DEFAULT_ORIGIN}/og/custom/override.png">`)
   })
 
   it('honours a custom origin', () => {

@@ -5,6 +5,7 @@ export {
   DEFAULT_OG_IMAGE_PATH,
   type BuildHeadOptions,
 } from './buildHead.js'
+export { ogPathFor } from './og-paths.js'
 export {
   breadcrumbListSchema,
   tickAnimalSchema,

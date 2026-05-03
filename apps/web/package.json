@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && pnpm build:ssr && pnpm build:prerender && pnpm build:aliases && pnpm build:fallback && pnpm build:sitemap && pnpm build:deploy-json",
+    "build": "tsc -b && vite build && pnpm build:ssr && pnpm build:prerender && pnpm build:og && pnpm build:aliases && pnpm build:fallback && pnpm build:sitemap && pnpm build:deploy-json",
     "build:ssr": "vite build --ssr src/entry-server.tsx --outDir dist-ssr --emptyOutDir",
     "build:prerender": "tsx scripts/prerender.ts",
+    "build:og": "tsx --tsconfig scripts/og/tsconfig.json scripts/og/generate-og.ts",
     "build:aliases": "tsx scripts/emit-alias-stubs.ts",
     "build:fallback": "tsx scripts/copy-spa-fallback.ts",
     "build:sitemap": "tsx scripts/generate-sitemap.ts",
@@ -22,10 +23,12 @@
     "@semilayer/client": "^1.9.1",
     "@semilayer/core": "^0.1.29",
     "@tickpedia/ui": "workspace:*",
+    "h3-js": "^4.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
@@ -34,6 +37,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^3.0.0",
     "jsdom": "^25.0.1",
+    "satori": "^0.26.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",

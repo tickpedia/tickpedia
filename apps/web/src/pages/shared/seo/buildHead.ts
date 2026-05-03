@@ -4,6 +4,7 @@
 // this; the lighter `useDocumentHead` hook handles that path.
 
 import type { PageHead } from './types.js'
+import { ogPathFor } from './og-paths.js'
 
 export interface BuildHeadOptions {
   /** Origin to prefix canonical and OG URLs. Defaults to live origin. */
@@ -19,7 +20,14 @@ export function buildHeadHtml(head: PageHead, options: BuildHeadOptions = {}): s
   const origin = options.origin ?? DEFAULT_ORIGIN
   const defaultOgPath = options.defaultOgImagePath ?? DEFAULT_OG_IMAGE_PATH
   const url = `${origin}${head.canonicalPath}`
-  const ogImage = `${origin}${head.ogImagePath ?? defaultOgPath}`
+  // Resolution order for the OG image:
+  //   1. Per-page override on `head.ogImagePath`.
+  //   2. The canonical-path-derived per-page PNG (`/og/<path>.png`),
+  //      which the build-time generator emits — this is what every
+  //      prerendered URL gets unless something explicitly opts out.
+  //   3. The site-wide default (`/og-default.png`).
+  const derivedOgPath = ogPathFor(head.canonicalPath)
+  const ogImage = `${origin}${head.ogImagePath ?? derivedOgPath ?? defaultOgPath}`
 
   const lines: string[] = [
     `<title>${escapeHtml(head.title)}</title>`,
