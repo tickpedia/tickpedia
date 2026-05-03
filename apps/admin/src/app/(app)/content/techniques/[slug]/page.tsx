@@ -37,6 +37,9 @@ export default async function EditTechniquePage({
     steps: row.steps,
     sourceUrl: row.sourceUrl ?? '',
     tickIds: tickLinks.map((t) => t.tickId),
+    kind: row.kind,
+    preventionScore: row.preventionScore ?? null,
+    citations: row.citations ?? [],
   }
 
   async function deleteAction() {

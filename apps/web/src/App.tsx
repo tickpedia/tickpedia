@@ -7,6 +7,7 @@ import { RiskDiseasePage } from './pages/risk/RiskDiseasePage.js'
 import { SeasonPage } from './pages/season/SeasonPage.js'
 import { TickPage } from './pages/tick/TickPage.js'
 import { TickRangePage } from './pages/tick/TickRangePage.js'
+import { TicksIndexPage } from './pages/tick/TicksIndexPage.js'
 import { DiseasesIndexPage } from './pages/disease/DiseasesIndexPage.js'
 import { DiseasePage } from './pages/disease/DiseasePage.js'
 import { DiseaseStatesPage } from './pages/disease/DiseaseStatesPage.js'
@@ -63,6 +64,7 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
       return <RiskDiseasePage slug={matched.params.slug} />
     }
     if (matched.kind === 'season') return <SeasonPage />
+    if (matched.kind === 'ticks-index') return <TicksIndexPage />
     if (matched.kind === 'tick' && matched.params.slug) {
       return <TickPage slug={matched.params.slug} />
     }

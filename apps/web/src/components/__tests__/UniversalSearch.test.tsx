@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   removalTechniquesSearch: vi.fn(),
   statesSearch: vi.fn(),
   countiesSearch: vi.fn(),
+  // Static fips→slug fetch the component does on mount so it can build
+  // /counties/<state-slug>/<county-slug> URLs without a per-result hop.
+  statesQuery: vi.fn(),
 }))
 
 vi.mock('../../lib/beam.js', () => ({
@@ -14,7 +17,7 @@ vi.mock('../../lib/beam.js', () => ({
     ticks: { search: mocks.ticksSearch },
     diseases: { search: mocks.diseasesSearch },
     removalTechniques: { search: mocks.removalTechniquesSearch },
-    states: { search: mocks.statesSearch },
+    states: { search: mocks.statesSearch, query: mocks.statesQuery },
     counties: { search: mocks.countiesSearch },
   },
 }))
@@ -29,6 +32,12 @@ describe('UniversalSearch', () => {
     mocks.removalTechniquesSearch.mockResolvedValue({ results: [] })
     mocks.statesSearch.mockResolvedValue({ results: [] })
     mocks.countiesSearch.mockResolvedValue({ results: [] })
+    mocks.statesQuery.mockResolvedValue({
+      rows: [
+        { fips: '25', slug: 'massachusetts' },
+        { fips: '19', slug: 'iowa' },
+      ],
+    })
   })
 
   it('renders an input and does not query SemiLayer until the user types', () => {
@@ -184,6 +193,71 @@ describe('UniversalSearch', () => {
     expect(screen.queryByTestId('universal-search-section-techniques')).toBeNull()
     expect(screen.queryByTestId('universal-search-section-states')).toBeNull()
     expect(screen.queryByTestId('universal-search-section-counties')).toBeNull()
+  })
+
+  it('routes county hits to /counties/<state-slug>/<county-slug>', async () => {
+    mocks.countiesSearch.mockResolvedValue({
+      results: [
+        {
+          metadata: {
+            fips: '19013',
+            slug: 'black-hawk',
+            countyName: 'Black Hawk County',
+            stateFips: '19',
+          },
+        },
+      ],
+    })
+
+    render(<UniversalSearch />)
+    // Wait for the on-mount states fetch to land before typing — the
+    // map needs to be populated for the URL to compose.
+    await waitFor(() => {
+      expect(mocks.statesQuery).toHaveBeenCalled()
+    })
+
+    const input = screen.getByTestId('universal-search-input')
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'black hawk' } })
+
+    const link = await screen.findByRole(
+      'option',
+      { name: /black hawk county/i },
+      { timeout: 2000 },
+    )
+    expect(link).toHaveAttribute('href', '/counties/iowa/black-hawk')
+  })
+
+  it('falls back to /search?q=… when the states cache failed to load', async () => {
+    mocks.statesQuery.mockRejectedValue(new Error('cache fetch failed'))
+    mocks.countiesSearch.mockResolvedValue({
+      results: [
+        {
+          metadata: {
+            fips: '19013',
+            slug: 'black-hawk',
+            countyName: 'Black Hawk County',
+            stateFips: '19',
+          },
+        },
+      ],
+    })
+
+    render(<UniversalSearch />)
+    await waitFor(() => {
+      expect(mocks.statesQuery).toHaveBeenCalled()
+    })
+
+    const input = screen.getByTestId('universal-search-input')
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'black hawk' } })
+
+    const link = await screen.findByRole(
+      'option',
+      { name: /black hawk county/i },
+      { timeout: 2000 },
+    )
+    expect(link.getAttribute('href') ?? '').toMatch(/^\/search\?q=/)
   })
 
   it('survives a per-lens failure — failing lenses fall back to empty', async () => {

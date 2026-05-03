@@ -13,8 +13,11 @@ export default async function Page() {
       r.id,
       r.slug,
       r.title,
-      r.source_url   as "sourceUrl",
-      r.updated_at   as "updatedAt",
+      r.kind,
+      r.prevention_score as "preventionScore",
+      r.source_url       as "sourceUrl",
+      coalesce(array_length(r.citations, 1), 0) as "citationCount",
+      r.updated_at       as "updatedAt",
       coalesce((
         select string_agg(t.common_name, ', ' order by t.common_name)
         from tick_removal_techniques tr
@@ -22,14 +25,17 @@ export default async function Page() {
         where tr.removal_technique_id = r.id
       ), '') as "tickList"
     from removal_techniques r
-    order by r.title
+    order by r.kind, r.title
   `)) as unknown as { rows: Row[] } | Row[]
 
   type Row = {
     id: number
     slug: string
     title: string
+    kind: 'removal' | 'prevention' | 'aftercare' | 'diagnostic' | 'myth'
+    preventionScore: number | null
     sourceUrl: string | null
+    citationCount: number
     updatedAt: Date | string
     tickList: string
   }
@@ -63,9 +69,11 @@ export default async function Page() {
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Kind</th>
+                <th>Score</th>
                 <th>Slug</th>
                 <th>Ticks</th>
-                <th>Source</th>
+                <th>Sources</th>
                 <th>Updated</th>
                 <th></th>
               </tr>
@@ -75,17 +83,33 @@ export default async function Page() {
                 <tr key={t.id}>
                   <td>{t.title}</td>
                   <td>
+                    <span
+                      className="muted"
+                      style={{
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        color: t.kind === 'myth' ? 'var(--error)' : undefined,
+                      }}
+                    >
+                      {t.kind}
+                    </span>
+                  </td>
+                  <td className="muted">
+                    {t.kind === 'prevention' && t.preventionScore !== null
+                      ? `${t.preventionScore}/10`
+                      : '—'}
+                  </td>
+                  <td>
                     <code>{t.slug}</code>
                   </td>
                   <td className="muted">{t.tickList || '—'}</td>
-                  <td>
-                    {t.sourceUrl ? (
-                      <a href={t.sourceUrl} target="_blank" rel="noreferrer">
-                        link
-                      </a>
-                    ) : (
-                      '—'
-                    )}
+                  <td className="muted">
+                    {t.citationCount > 0
+                      ? `${t.citationCount}`
+                      : t.sourceUrl
+                        ? '1 (legacy)'
+                        : '—'}
                   </td>
                   <td>
                     {(t.updatedAt instanceof Date ? t.updatedAt : new Date(t.updatedAt))

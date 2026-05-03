@@ -1,11 +1,15 @@
-// JSON removal-technique import. Shape:
+// JSON removal-technique import. Reflects the post-2026-05 trait shape:
 //   [
 //     {
-//       "slug": "fine-tip-tweezers",       // optional, derived from title
+//       "slug": "fine-tip-tweezers",            // optional, derived from title
 //       "title": "Fine-tip tweezers",
+//       "oneLiner": "≤200-char summary.",
 //       "steps": "1. Grasp ...",
-//       "sourceUrl": "https://…",          // optional
-//       "ticks": ["ixodes-scapularis"]     // optional, by tick slug
+//       "kind": "removal" | "prevention" | "aftercare" | "diagnostic" | "myth",
+//       "preventionScore": 0..10 | null,        // required when kind = prevention
+//       "citations": ["https://...", ...],      // multi-source bibliography
+//       "sourceUrl": "https://…",               // optional legacy primary
+//       "ticks": ["ixodes-scapularis"]          // optional, by tick slug
 //     }
 //   ]
 
@@ -24,13 +28,41 @@ import JsonImportForm from '../../../../components/JsonImportForm'
 const SCHEMA_HINT = `[
   {
     "slug": "fine-tip-tweezers",
-    "title": "Fine-tip tweezers",
-    "oneLiner": "Fine-tipped tweezers grip the tick at the skin and pull straight up — the CDC's recommended removal method for any embedded tick.",
+    "title": "Fine-tipped tweezers (CDC method)",
+    "oneLiner": "Fine-tipped tweezers grasp the tick at skin level and pull straight up — the CDC-recommended method for any embedded tick.",
     "steps": "1. Grasp the tick as close to the skin as possible.\\n2. ...",
-    "sourceUrl": "https://www.cdc.gov/...",
+    "kind": "removal",
+    "preventionScore": null,
+    "citations": [
+      "https://www.cdc.gov/ticks/removing_a_tick.html",
+      "https://www.cdc.gov/ticks/after-a-tick-bite/index.html"
+    ],
     "ticks": ["ixodes-scapularis"]
+  },
+  {
+    "slug": "permethrin-clothing",
+    "title": "Permethrin-treated clothing",
+    "oneLiner": "Kills ticks on contact with treated fabric — a 0.5% spray lasts 4-6 washes and never goes on bare skin.",
+    "steps": "1. Hang the garment outdoors.\\n2. Spray each side until lightly damp.\\n3. Let dry fully before wearing.",
+    "kind": "prevention",
+    "preventionScore": 9,
+    "citations": ["https://www.epa.gov/insect-repellents/repellent-treated-clothing"],
+    "ticks": ["ixodes-scapularis", "amblyomma-americanum"]
+  },
+  {
+    "slug": "matches-and-nail-polish",
+    "title": "Matches, nail polish, and petroleum jelly",
+    "oneLiner": "Folk methods that make the tick salivate and increase pathogen transfer — do not use.",
+    "steps": "Do not use any of these. Use clean fine-tipped tweezers instead.",
+    "kind": "myth",
+    "preventionScore": null,
+    "citations": ["https://www.cdc.gov/ticks/removing_a_tick.html"],
+    "ticks": []
   }
 ]`
+
+const ALLOWED_KINDS = ['removal', 'prevention', 'aftercare', 'diagnostic', 'myth'] as const
+type TechniqueKind = (typeof ALLOWED_KINDS)[number]
 
 function slugify(s: string): string {
   return s
@@ -71,18 +103,49 @@ async function importAction(
       continue
     }
     const slug = String(rec.slug ?? '').trim() || slugify(title)
-    const sourceUrl =
-      typeof rec.sourceUrl === 'string' && rec.sourceUrl.trim() ? rec.sourceUrl.trim() : null
     const oneLinerResult = normalizeOneLiner(rec.oneLiner)
     if ('error' in oneLinerResult) {
       summary.errors.push({ row: i, reason: oneLinerResult.error })
       continue
     }
 
+    const kindRaw = typeof rec.kind === 'string' ? rec.kind : 'removal'
+    const kind: TechniqueKind = (ALLOWED_KINDS as readonly string[]).includes(kindRaw)
+      ? (kindRaw as TechniqueKind)
+      : 'removal'
+
+    let preventionScore: number | null = null
+    if (kind === 'prevention') {
+      const raw = rec.preventionScore
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        preventionScore = Math.max(0, Math.min(10, Math.round(raw)))
+      }
+    }
+
+    const citationsIn = Array.isArray(rec.citations)
+      ? rec.citations
+          .map((c) => (typeof c === 'string' ? c.trim() : ''))
+          .filter((c) => c.length > 0)
+      : []
+    const legacySource =
+      typeof rec.sourceUrl === 'string' && rec.sourceUrl.trim() ? rec.sourceUrl.trim() : null
+    const citations =
+      citationsIn.length > 0 ? citationsIn : legacySource ? [legacySource] : []
+    const sourceUrl = legacySource ?? citations[0] ?? null
+
     try {
       await db
         .insert(schema.removalTechniques)
-        .values({ slug, title, oneLiner: oneLinerResult.value, steps, sourceUrl })
+        .values({
+          slug,
+          title,
+          oneLiner: oneLinerResult.value,
+          steps,
+          sourceUrl,
+          kind,
+          preventionScore,
+          citations,
+        })
         .onConflictDoUpdate({
           target: schema.removalTechniques.slug,
           set: {
@@ -90,6 +153,9 @@ async function importAction(
             oneLiner: sql`EXCLUDED.one_liner`,
             steps: sql`EXCLUDED.steps`,
             sourceUrl: sql`EXCLUDED.source_url`,
+            kind: sql`EXCLUDED.kind`,
+            preventionScore: sql`EXCLUDED.prevention_score`,
+            citations: sql`EXCLUDED.citations`,
             updatedAt: sql`now()`,
           },
         })
@@ -138,8 +204,10 @@ export default function Page() {
     <div>
       <h1>Import: removal techniques (JSON)</h1>
       <p className="muted">
-        Upserts by <code>slug</code>. Tick associations come in by tick slug — referenced ticks
-        must already exist.
+        Upserts by <code>slug</code>. Tick associations come in by tick slug — referenced
+        ticks must already exist. <code>kind</code> is required (defaults to{' '}
+        <code>removal</code> if missing); <code>preventionScore</code> is only honoured when{' '}
+        <code>kind = &ldquo;prevention&rdquo;</code> and gets clamped to 0–10.
       </p>
       <JsonImportForm action={importAction} schemaHint={SCHEMA_HINT} />
     </div>

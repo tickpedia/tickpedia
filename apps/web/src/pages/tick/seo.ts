@@ -55,6 +55,25 @@ export function truncateDescription(text: string): string {
   return (lastSpace > 60 ? cutoff.slice(0, lastSpace) : cutoff) + '…'
 }
 
+export function buildTicksIndexHead(origin = DEFAULT_ORIGIN): PageHead {
+  return {
+    title: 'Ticks — every species we track | Tickpedia',
+    description:
+      'A field-guide index of every tick Tickpedia tracks. ' +
+      'Heraldic crests, established-county footprint, and risk tier.',
+    canonicalPath: '/ticks',
+    jsonLd: [
+      breadcrumbListSchema(
+        [
+          { label: 'Tickpedia', path: '/' },
+          { label: 'Ticks' },
+        ],
+        origin,
+      ),
+    ],
+  }
+}
+
 export function buildTickRangeHead(tick: TickSeoInput, origin = DEFAULT_ORIGIN): PageHead {
   return {
     title: `${tick.commonName} range — Ticks | Tickpedia`,

@@ -86,9 +86,38 @@ export function UniversalSearch({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [open, setOpen] = useState(false)
+  // Counties are addressed by `/counties/<state-slug>/<county-slug>`,
+  // but the counties lens hit only carries `stateFips`. Pre-fetch the
+  // (small, static) states table once so we can compose the URL
+  // without a per-result roundtrip.
+  const [stateSlugByFips, setStateSlugByFips] = useState<Map<string, string>>(
+    () => new Map(),
+  )
   const requestId = useRef(0)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const listboxId = useId()
+
+  useEffect(() => {
+    let cancelled = false
+    beam.states
+      .query({ fields: ['fips', 'slug'], limit: 100 })
+      .then((res) => {
+        if (cancelled) return
+        const map = new Map<string, string>()
+        for (const row of res.rows ?? []) {
+          const fips = typeof row.fips === 'string' ? row.fips : ''
+          const slug = typeof row.slug === 'string' ? row.slug : ''
+          if (fips && slug) map.set(fips, slug)
+        }
+        setStateSlugByFips(map)
+      })
+      .catch(() => {
+        // Non-fatal — counties just fall back to the /search route.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const trimmed = q.trim()
 
@@ -341,16 +370,21 @@ export function UniversalSearch({
           <SearchSection
             label="Counties"
             testId="universal-search-section-counties"
-            rows={hits.counties.map((c) => ({
-              key: `county-${c.fips}`,
-              // Counties need a state slug for their URL; we don't have
-              // it cheaply here, so route through /search?q=<county> for
-              // the resolver to land on the canonical URL. Skipping
-              // direct linking is fine — the county is still discoverable.
-              href: `/search?q=${encodeURIComponent(c.countyName)}`,
-              primary: c.countyName,
-              secondary: null,
-            }))}
+            rows={hits.counties.map((c) => {
+              const stateSlug = stateSlugByFips.get(c.stateFips)
+              const href = stateSlug
+                ? pathFor('county', { state: stateSlug, slug: c.slug })
+                : // The states-cache fetch failed — fall back to the
+                  // search route so the link still resolves to something
+                  // useful instead of 404'ing on an empty :state slug.
+                  `/search?q=${encodeURIComponent(c.countyName)}`
+              return {
+                key: `county-${c.fips}`,
+                href,
+                primary: c.countyName,
+                secondary: null,
+              }
+            })}
           />
         </div>
       )}

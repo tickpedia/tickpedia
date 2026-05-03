@@ -13,6 +13,9 @@ export interface SaveResult {
   error?: string
 }
 
+const ALLOWED_KINDS = ['removal', 'prevention', 'aftercare', 'diagnostic', 'myth'] as const
+type TechniqueKind = (typeof ALLOWED_KINDS)[number]
+
 function slugify(s: string): string {
   return s
     .normalize('NFKD')
@@ -21,10 +24,17 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+function parseCitations(raw: FormDataEntryValue | null): string[] {
+  if (typeof raw !== 'string') return []
+  return raw
+    .split(/\r?\n|,/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+}
+
 export async function upsertTechnique(form: FormData): Promise<SaveResult> {
   const title = String(form.get('title') ?? '').trim()
   const steps = String(form.get('steps') ?? '').trim()
-  const sourceUrl = String(form.get('sourceUrl') ?? '').trim() || null
   const slugInput = String(form.get('slug') ?? '').trim()
   const slug = slugInput || slugify(title)
   const oneLinerResult = normalizeOneLiner(form.get('oneLiner'))
@@ -34,12 +44,52 @@ export async function upsertTechnique(form: FormData): Promise<SaveResult> {
   if (!slug) return { ok: false, error: 'Slug could not be derived.' }
   if ('error' in oneLinerResult) return { ok: false, error: oneLinerResult.error }
 
+  const kindRaw = String(form.get('kind') ?? 'removal')
+  const kind: TechniqueKind = (ALLOWED_KINDS as readonly string[]).includes(kindRaw)
+    ? (kindRaw as TechniqueKind)
+    : 'removal'
+
+  // The score field is only stored when kind = prevention. Anything
+  // else gets nulled out, even if the form posted a stale value.
+  let preventionScore: number | null = null
+  if (kind === 'prevention') {
+    const raw = form.get('preventionScore')
+    if (typeof raw === 'string' && raw.trim() !== '') {
+      const parsed = Number(raw)
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
+        return { ok: false, error: 'Prevention score must be a number 0–10.' }
+      }
+      preventionScore = Math.round(parsed)
+    }
+  }
+
+  const citations = parseCitations(form.get('citations'))
+  for (const c of citations) {
+    if (!/^https?:\/\//i.test(c)) {
+      return { ok: false, error: `Citation must be an http(s) URL: ${c}` }
+    }
+  }
+
+  // Source URL falls back to the first citation so a sloppy edit that
+  // only fills citations still surfaces a primary source link.
+  const sourceUrlInput = String(form.get('sourceUrl') ?? '').trim()
+  const sourceUrl = sourceUrlInput || citations[0] || null
+
   const tickIds = readIdList(form, 'tickIds')
 
   const db = connect(process.env.DATABASE_URL)
   await db
     .insert(schema.removalTechniques)
-    .values({ slug, title, oneLiner: oneLinerResult.value, steps, sourceUrl })
+    .values({
+      slug,
+      title,
+      oneLiner: oneLinerResult.value,
+      steps,
+      sourceUrl,
+      kind,
+      preventionScore,
+      citations,
+    })
     .onConflictDoUpdate({
       target: schema.removalTechniques.slug,
       set: {
@@ -47,6 +97,9 @@ export async function upsertTechnique(form: FormData): Promise<SaveResult> {
         oneLiner: sql`EXCLUDED.one_liner`,
         steps: sql`EXCLUDED.steps`,
         sourceUrl: sql`EXCLUDED.source_url`,
+        kind: sql`EXCLUDED.kind`,
+        preventionScore: sql`EXCLUDED.prevention_score`,
+        citations: sql`EXCLUDED.citations`,
         updatedAt: sql`now()`,
       },
     })
