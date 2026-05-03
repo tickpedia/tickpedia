@@ -40,6 +40,7 @@ export function HeroSection({ cells, loading }: HeroSectionProps) {
           height={300}
           cells={cells}
           compact
+          backdrop
           synthesize={loading && cells.length === 0}
           ariaLabel="Continental tick-borne disease heatmap"
         />

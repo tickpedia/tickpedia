@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { DATA_RAMP, rampIndex, type DataRamp } from '../ramp.js'
 import { Cell } from './Cell.js'
+import { projectConusPaths } from './conus-paths.js'
 import { synthesizeHexCells, type HexCell } from './synth-cells.js'
 
 // Continental, border-agnostic risk heatmap. Each cell is a flat-top
@@ -23,6 +25,8 @@ export interface HexHeatmapProps {
   threshold?: number
   /** Generate believable mockup data when no cells are supplied. */
   synthesize?: boolean
+  /** Render a faint CONUS state backdrop so sparse-data views still convey geography. */
+  backdrop?: boolean
   ariaLabel?: string
 }
 
@@ -34,11 +38,23 @@ export function HexHeatmap({
   compact = false,
   threshold = 0.06,
   synthesize = false,
+  backdrop = false,
   ariaLabel = 'Risk heatmap',
 }: HexHeatmapProps) {
   const r = compact ? 7 : 10
   const list = cells ?? (synthesize ? synthesizeHexCells({ width, height, r, seed: 42 }) : [])
   const max = Math.max(...list.map((c) => c.v), 1)
+  // CDC case counts are power-law: one or two hexes carry orders of
+  // magnitude more than the rest, so a linear `v / max` collapses the
+  // long tail under the threshold and the map reads as a few isolated
+  // dots. log1p flattens the dynamic range — every populated hex lands
+  // somewhere on the ramp and the regional spread becomes legible.
+  const logMax = Math.log1p(max)
+
+  const backdropPaths = useMemo(
+    () => (backdrop ? projectConusPaths({ width, height }) : []),
+    [backdrop, width, height],
+  )
 
   return (
     <svg
@@ -50,8 +66,24 @@ export function HexHeatmap({
       style={{ display: 'block' }}
     >
       <rect x="0" y="0" width={width} height={height} fill="var(--bg-2)" opacity="0.4" />
+      {backdropPaths.length > 0 && (
+        <g
+          data-testid="hex-heatmap-backdrop"
+          fill="var(--bg)"
+          fillOpacity={0.55}
+          stroke="var(--ink)"
+          strokeOpacity={0.18}
+          strokeWidth={0.6}
+          strokeLinejoin="round"
+        >
+          {backdropPaths.map((p) => (
+            <path key={p.code} d={p.d} />
+          ))}
+        </g>
+      )}
       {list.map((c, i) => {
-        const idx = rampIndex(c.v / max, ramp.length, threshold)
+        const norm = logMax > 0 ? Math.log1p(c.v) / logMax : 0
+        const idx = rampIndex(norm, ramp.length, threshold)
         if (idx < 0) return null
         const fill = ramp[idx]!
         return <Cell key={i} cx={c.x} cy={c.y} r={r} fill={fill} />

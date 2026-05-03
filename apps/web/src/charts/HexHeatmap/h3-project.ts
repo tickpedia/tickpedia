@@ -63,9 +63,18 @@ export interface NormalizedDensityCell {
 }
 
 /**
+ * Cells with `total < NOISE_FLOOR` are dropped in `bucketsToCells`.
+ * H3 res-4 cells covering ~1,770 km² accumulate over 23 years of CDC
+ * surveillance; a single reported case is statistical noise (often a
+ * boundary effect from the H3 → county join). Filtering these out
+ * keeps the long tail off the map without losing any real cluster.
+ */
+export const NOISE_FLOOR = 3
+
+/**
  * Convert an array of normalized density rows to `HexCell[]` ready for
  * the HexHeatmap chart. Drops cells with empty indices, cells outside
- * CONUS, and zero-total cells (saves a render call).
+ * CONUS, and cells whose total is below `NOISE_FLOOR`.
  *
  * Normalized shape (`{ h3Cell, total }`) matches what the SSR cache
  * stores and what the runtime hooks return.
@@ -82,7 +91,7 @@ export function bucketsToCells(
     const idx = b.h3Cell
     if (typeof idx !== 'string' || idx.length === 0) continue
     const total = b.total
-    if (total <= 0) continue
+    if (total < NOISE_FLOOR) continue
 
     let centroid: { lat: number; lng: number }
     try {

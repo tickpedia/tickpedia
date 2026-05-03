@@ -43,6 +43,7 @@ export function HeatmapSection({
         width={960}
         height={460}
         cells={cells}
+        backdrop
         synthesize={loading && cells.length === 0}
         ariaLabel={ariaLabel}
       />

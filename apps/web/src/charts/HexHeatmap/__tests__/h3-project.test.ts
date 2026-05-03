@@ -98,24 +98,28 @@ describe('bucketsToCells', () => {
     const cells = bucketsToCells(
       [
         { h3Cell: honolulu, total: 999 },
-        { h3Cell: portland, total: 1 },
+        { h3Cell: portland, total: 50 },
       ],
       size,
     )
     expect(cells).toHaveLength(1)
-    expect(cells[0]?.v).toBe(1)
+    expect(cells[0]?.v).toBe(50)
   })
 
-  it('drops zero-total cells', () => {
+  it('drops cells below the noise floor (zero or single-case hexes)', () => {
     const portland = latLngToCell(43.66, -70.26, 4)
     const cells = bucketsToCells(
       [
         { h3Cell: portland, total: 0 },
-        { h3Cell: portland, total: 0 },
+        { h3Cell: portland, total: 1 },
+        { h3Cell: portland, total: 2 },
+        { h3Cell: portland, total: 3 },
       ],
       size,
     )
-    expect(cells).toHaveLength(0)
+    // Only the total=3 cell (== NOISE_FLOOR) survives.
+    expect(cells).toHaveLength(1)
+    expect(cells[0]?.v).toBe(3)
   })
 
   it('drops malformed indices without throwing', () => {
