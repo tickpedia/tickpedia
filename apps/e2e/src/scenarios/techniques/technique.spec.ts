@@ -17,6 +17,18 @@ test.describe('/techniques', () => {
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href')
     expect(canonical).toBe('https://tickpedia.com/techniques')
   })
+
+  test('exposes a semantic search input and kind chip filters', async ({ page }) => {
+    await page.goto('/techniques')
+    await expect(page.getByTestId('techniques-search-input')).toBeVisible()
+    await expect(page.getByTestId('techniques-kind-filter')).toBeVisible()
+    // Five trait chips + the "All" chip.
+    await expect(page.getByTestId('kind-chip-all')).toBeVisible()
+    await expect(page.getByTestId('kind-chip-removal')).toBeVisible()
+    await expect(page.getByTestId('kind-chip-prevention')).toBeVisible()
+    await expect(page.getByTestId('kind-chip-aftercare')).toBeVisible()
+    await expect(page.getByTestId('kind-chip-myth')).toBeVisible()
+  })
 })
 
 test.describe('/techniques/[slug]', () => {
@@ -39,13 +51,22 @@ test.describe('/techniques/[slug]', () => {
     await expect(steps.getByText('02')).toBeVisible()
   })
 
-  test('exposes the source chip with target=_blank', async ({ page }) => {
+  test('exposes the citations bibliography with target=_blank', async ({ page }) => {
     await page.goto(`/techniques/${TECHNIQUE_SLUG}`)
-    const sourceLink = page.getByRole('link', { name: /^source · /i }).first()
-    await expect(sourceLink).toBeVisible()
-    await expect(sourceLink).toHaveAttribute('target', '_blank')
-    const rel = await sourceLink.getAttribute('rel')
+    const citations = page.getByTestId('technique-citations')
+    await expect(citations).toBeVisible()
+    const cdcLink = citations.getByRole('link', { name: /cdc\.gov/i }).first()
+    await expect(cdcLink).toBeVisible()
+    await expect(cdcLink).toHaveAttribute('target', '_blank')
+    const rel = await cdcLink.getAttribute('rel')
     expect(rel ?? '').toContain('noreferrer')
+  })
+
+  test('eyebrow is keyed off the kind trait, not slug-prefix matching', async ({ page }) => {
+    await page.goto(`/techniques/${TECHNIQUE_SLUG}`)
+    const eyebrow = page.getByTestId('technique-eyebrow')
+    await expect(eyebrow).toBeVisible()
+    await expect(eyebrow).toHaveAttribute('data-kind', 'removal')
   })
 
   test('renders the global footer with project + browse links', async ({ page }) => {

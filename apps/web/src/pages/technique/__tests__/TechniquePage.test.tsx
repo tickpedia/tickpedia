@@ -50,6 +50,12 @@ describe('TechniquePage', () => {
             '4. Dispose of the tick.',
           ].join('\n'),
           sourceUrl: 'https://www.cdc.gov/ticks/removal/index.html',
+          kind: 'removal',
+          preventionScore: null,
+          citations: [
+            'https://www.cdc.gov/ticks/removal/index.html',
+            'https://www.cdc.gov/lyme/prevention/index.html',
+          ],
         },
       ],
     })
@@ -137,7 +143,7 @@ describe('TechniquePage', () => {
     })
   })
 
-  it('renders the hero, parsed steps, applies-to rail, and prevents rail on success', async () => {
+  it('renders the hero, parsed steps, applies-to rail, citations, and prevents rail on success', async () => {
     setupHappyPath()
     render(<TechniquePage slug="fine-tipped-tweezers" />)
 
@@ -147,6 +153,11 @@ describe('TechniquePage', () => {
         screen.getByRole('heading', { level: 1, name: /fine-tipped tweezers/i }),
       ).toBeInTheDocument()
     })
+
+    // Eyebrow keys off `kind` rather than slug-prefix matching.
+    const eyebrow = screen.getByTestId('technique-eyebrow')
+    expect(eyebrow.getAttribute('data-kind')).toBe('removal')
+    expect(eyebrow.textContent).toMatch(/removal/i)
 
     // Steps — 4 ordinals "01" through "04"
     const stepsSection = await screen.findByTestId('technique-steps')
@@ -166,6 +177,13 @@ describe('TechniquePage', () => {
     expect(within(appliesTo).getByRole('link', { name: /^lone star tick$/i })).toBeInTheDocument()
     expect(within(appliesTo).queryByRole('link', { name: /^american dog tick$/i })).toBeNull()
 
+    // Citations — both URLs render as chips, opening in a new tab.
+    const citations = screen.getByTestId('technique-citations')
+    const cdcLinks = within(citations).getAllByRole('link', { name: /cdc\.gov/i })
+    expect(cdcLinks).toHaveLength(2)
+    expect(cdcLinks[0]).toHaveAttribute('target', '_blank')
+    expect(cdcLinks[0]).toHaveAttribute('rel', expect.stringContaining('noreferrer'))
+
     // Prevents-diseases — derived rail, only the two diseases in the join.
     const prevents = await screen.findByTestId('technique-prevents')
     await waitFor(() => {
@@ -177,11 +195,9 @@ describe('TechniquePage', () => {
     expect(within(prevents).getByRole('link', { name: /alpha-gal syndrome/i })).toBeInTheDocument()
     expect(within(prevents).queryByRole('link', { name: /^rmsf$/i })).toBeNull()
 
-    // Source chip — opens in a new tab.
-    const sourceLink = screen.getByRole('link', { name: /source · cdc\.gov/i })
-    expect(sourceLink).toHaveAttribute('href', 'https://www.cdc.gov/ticks/removal/index.html')
-    expect(sourceLink).toHaveAttribute('target', '_blank')
-    expect(sourceLink).toHaveAttribute('rel', expect.stringContaining('noreferrer'))
+    // Removal kind: no myth banner, no prevention score scale.
+    expect(screen.queryByTestId('technique-myth-banner')).toBeNull()
+    expect(screen.queryByTestId('technique-prevention-score')).toBeNull()
   })
 
   it('sets the document title and canonical link from the loaded technique', async () => {
@@ -206,6 +222,9 @@ describe('TechniquePage', () => {
           oneLiner: null,
           steps: '1. Watch for fever.\n2. Then call.',
           sourceUrl: null,
+          kind: 'aftercare',
+          preventionScore: null,
+          citations: [],
         },
       ],
     })
@@ -227,5 +246,80 @@ describe('TechniquePage', () => {
     })
     // Applies-to shows the editorial-empty fallback copy.
     expect(screen.getByText(/editorial mapping not yet seeded/i)).toBeInTheDocument()
+    // Aftercare-kind eyebrow.
+    expect(screen.getByTestId('technique-eyebrow').getAttribute('data-kind')).toBe('aftercare')
+  })
+
+  it('renders a hard "do not use" warning banner for myth-kind entries', async () => {
+    mocks.removalTechniquesQuery.mockResolvedValue({
+      rows: [
+        {
+          id: 7,
+          slug: 'matches-and-nail-polish',
+          title: 'Matches, nail polish, and petroleum jelly',
+          oneLiner:
+            'Folk methods that make the tick salivate and increase pathogen transfer.',
+          steps:
+            'Do not use any of these. Use clean fine-tipped tweezers instead.',
+          sourceUrl: 'https://www.cdc.gov/ticks/removing_a_tick.html',
+          kind: 'myth',
+          preventionScore: null,
+          citations: ['https://www.cdc.gov/ticks/removing_a_tick.html'],
+        },
+      ],
+    })
+    mocks.tickRemovalTechniquesQuery.mockResolvedValue({ rows: [] })
+    mocks.ticksQuery.mockResolvedValue({ rows: [] })
+    mocks.tickDiseasesQuery.mockResolvedValue({ rows: [] })
+    mocks.diseasesQuery.mockResolvedValue({ rows: [] })
+
+    render(<TechniquePage slug="matches-and-nail-polish" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('technique-myth-banner')).toBeInTheDocument()
+    })
+    const banner = screen.getByTestId('technique-myth-banner')
+    expect(banner.getAttribute('role')).toBe('alert')
+    expect(within(banner).getByText(/do not use/i)).toBeInTheDocument()
+    expect(screen.getByTestId('technique-eyebrow').getAttribute('data-kind')).toBe('myth')
+    // Myths never carry a prevention score.
+    expect(screen.queryByTestId('technique-prevention-score')).toBeNull()
+  })
+
+  it('renders the 0-10 prevention impact scale for prevention-kind entries', async () => {
+    mocks.removalTechniquesQuery.mockResolvedValue({
+      rows: [
+        {
+          id: 12,
+          slug: 'permethrin-clothing',
+          title: 'Permethrin-treated clothing',
+          oneLiner: 'Kills ticks on contact with treated fabric.',
+          steps: '1. Spray onto clothing.\n2. Let dry before wearing.',
+          sourceUrl: 'https://www.epa.gov/insect-repellents/repellent-treated-clothing',
+          kind: 'prevention',
+          preventionScore: 9,
+          citations: [
+            'https://www.epa.gov/insect-repellents/repellent-treated-clothing',
+            'https://www.cdc.gov/ticks/prevention/index.html',
+          ],
+        },
+      ],
+    })
+    mocks.tickRemovalTechniquesQuery.mockResolvedValue({ rows: [] })
+    mocks.ticksQuery.mockResolvedValue({ rows: [] })
+    mocks.tickDiseasesQuery.mockResolvedValue({ rows: [] })
+    mocks.diseasesQuery.mockResolvedValue({ rows: [] })
+
+    render(<TechniquePage slug="permethrin-clothing" />)
+
+    const score = await screen.findByTestId('technique-prevention-score')
+    expect(score.getAttribute('data-score')).toBe('9')
+    // Nine of ten segments are active.
+    const active = within(score)
+      .getAllByTestId(/^pscore-segment-/)
+      .filter((el) => el.getAttribute('data-active') === 'on')
+    expect(active).toHaveLength(9)
+    expect(within(score).getByText('9 / 10')).toBeInTheDocument()
+    expect(screen.getByTestId('technique-eyebrow').getAttribute('data-kind')).toBe('prevention')
   })
 })

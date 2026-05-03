@@ -11,6 +11,8 @@ export { techniqueCacheKey } from './cache-keys.js'
 
 export type TechniqueStatus = 'loading' | 'ok' | 'not-found' | 'error'
 
+export type TechniqueKind = 'removal' | 'prevention' | 'aftercare' | 'diagnostic' | 'myth'
+
 export interface TechniqueRow {
   id: number
   slug: string
@@ -18,6 +20,10 @@ export interface TechniqueRow {
   oneLiner: string | null
   steps: string | null
   sourceUrl: string | null
+  kind: TechniqueKind
+  /** 0-10 — only meaningful when kind = 'prevention'. */
+  preventionScore: number | null
+  citations: string[]
 }
 
 export interface UseTechniqueResult {
@@ -44,17 +50,28 @@ export function useTechnique(slug: string): UseTechniqueResult {
     beam.removalTechniques
       .query({
         where: { slug },
-        fields: ['id', 'slug', 'title', 'oneLiner', 'steps', 'sourceUrl'],
+        fields: [
+          'id',
+          'slug',
+          'title',
+          'oneLiner',
+          'steps',
+          'sourceUrl',
+          'kind',
+          'preventionScore',
+          'citations',
+        ],
         limit: 1,
       })
       .then((res) => {
         if (cancelled) return
-        const row = res.rows[0] as TechniqueRow | undefined
-        if (!row) {
+        const raw = res.rows[0]
+        if (!raw) {
           resolvedForRef.current = slug
           setState({ technique: null, status: 'not-found', error: null })
           return
         }
+        const row = normalizeTechnique(raw)
         resolvedForRef.current = slug
         setState({ technique: row, status: 'ok', error: null })
       })
@@ -70,4 +87,47 @@ export function useTechnique(slug: string): UseTechniqueResult {
   }, [slug])
 
   return state
+}
+
+const ALLOWED_KINDS: readonly TechniqueKind[] = [
+  'removal',
+  'prevention',
+  'aftercare',
+  'diagnostic',
+  'myth',
+]
+
+// SemiLayer's generated metadata types declare `citations` as a single
+// string and `preventionScore` as a non-nullable number, but the wire
+// format honours the underlying Postgres `text[]` / nullable integer.
+// Normalize here so the rest of the page can lean on a typed shape.
+export function normalizeTechnique(raw: Record<string, unknown>): TechniqueRow {
+  const kindRaw = typeof raw.kind === 'string' ? raw.kind : 'removal'
+  const kind = (ALLOWED_KINDS as readonly string[]).includes(kindRaw)
+    ? (kindRaw as TechniqueKind)
+    : 'removal'
+  const preventionScoreRaw = raw.preventionScore
+  const preventionScore =
+    kind === 'prevention' &&
+    typeof preventionScoreRaw === 'number' &&
+    Number.isFinite(preventionScoreRaw)
+      ? Math.max(0, Math.min(10, Math.round(preventionScoreRaw)))
+      : null
+  const citationsRaw = raw.citations
+  const citations: string[] = Array.isArray(citationsRaw)
+    ? citationsRaw.filter((c): c is string => typeof c === 'string' && c.length > 0)
+    : typeof citationsRaw === 'string' && citationsRaw.length > 0
+      ? [citationsRaw]
+      : []
+  return {
+    id: typeof raw.id === 'number' ? raw.id : 0,
+    slug: typeof raw.slug === 'string' ? raw.slug : '',
+    title: typeof raw.title === 'string' ? raw.title : '',
+    oneLiner: typeof raw.oneLiner === 'string' ? raw.oneLiner : null,
+    steps: typeof raw.steps === 'string' ? raw.steps : null,
+    sourceUrl: typeof raw.sourceUrl === 'string' ? raw.sourceUrl : null,
+    kind,
+    preventionScore,
+    citations,
+  }
 }

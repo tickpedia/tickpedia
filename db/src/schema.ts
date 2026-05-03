@@ -29,6 +29,18 @@ import { pgTable, serial, text, integer, doublePrecision, timestamp, pgEnum, uni
 export const dangerLevel = pgEnum('danger_level', ['low', 'medium', 'high'])
 export const prevalence = pgEnum('prevalence', ['low', 'medium', 'high'])
 export const tickStatus = pgEnum('tick_status', ['established', 'reported', 'no_records'])
+// Removal-techniques are not all *removal* — the table also carries
+// prevention, aftercare, diagnostic, and debunked-myth entries. The
+// kind drives presentation (warning banner for myths, score scale for
+// prevention) and is searchable in SemiLayer so /techniques can filter
+// by kind.
+export const techniqueKind = pgEnum('technique_kind', [
+  'removal',
+  'prevention',
+  'aftercare',
+  'diagnostic',
+  'myth',
+])
 // CDC's Ixodes Pathogens County Table only ever publishes "Present" or
 // "No records". Cumulative — once a pathogen flips to present in a
 // county it stays present in subsequent vintages.
@@ -170,6 +182,20 @@ export const removalTechniques = pgTable(
     title: text('title').notNull(),
     oneLiner: text('one_liner'),
     steps: text('steps').notNull(),
+    // Default 'removal' so legacy rows keep working before re-import.
+    kind: techniqueKind('kind').notNull().default('removal'),
+    // 0-10 evidence-weighted prevention impact score. Only meaningful
+    // when kind = 'prevention'; null everywhere else. Drives the score
+    // pill on the technique page and the scale rendered on tick pages.
+    preventionScore: integer('prevention_score'),
+    // Multi-source citations. The legacy `sourceUrl` stays as the
+    // canonical primary source; `citations` holds the full set so the
+    // page can render a small bibliography. Empty array allowed (the
+    // base seed entries pre-date the field).
+    citations: text('citations')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     sourceUrl: text('source_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

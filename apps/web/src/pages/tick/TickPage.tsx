@@ -2,10 +2,12 @@ import { PageHeader, Crumb, Footer, useDocumentHead } from '../shared/index.js'
 import { useTick } from './data/useTick.js'
 import { useTickRange } from './data/useTickRange.js'
 import { useTickDiseases } from './data/useTickDiseases.js'
+import { useTickTechniques } from './data/useTickTechniques.js'
 import { useEntityFacts } from '../fact/data/useEntityFacts.js'
 import { HeroSection } from './sections/HeroSection.js'
 import { RangeSection } from './sections/RangeSection.js'
 import { DiseasesSection } from './sections/DiseasesSection.js'
+import { TechniquesSection } from './sections/TechniquesSection.js'
 import { FactsRail } from '../fact/sections/FactsRail.js'
 import { buildTickHead } from './seo.js'
 
@@ -24,6 +26,7 @@ export function TickPage({ slug }: TickPageProps) {
 
   const range = useTickRange(tickId)
   const diseases = useTickDiseases(tickId)
+  const techniques = useTickTechniques(tickId)
   const facts = useEntityFacts('tick', tickId)
 
   const head = tick
@@ -78,6 +81,11 @@ export function TickPage({ slug }: TickPageProps) {
         error={range.error}
       />
       <DiseasesSection rows={diseases.rows} loading={diseases.loading} error={diseases.error} />
+      <TechniquesSection
+        buckets={techniques.buckets}
+        loading={techniques.loading}
+        error={techniques.error}
+      />
       <FactsRail
         rows={facts.rows}
         loading={facts.loading}

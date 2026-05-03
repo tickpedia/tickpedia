@@ -248,8 +248,12 @@ await db
     target: removalTechniques.slug,
     set: {
       title: sql`EXCLUDED.title`,
+      oneLiner: sql`EXCLUDED.one_liner`,
       steps: sql`EXCLUDED.steps`,
       sourceUrl: sql`EXCLUDED.source_url`,
+      kind: sql`EXCLUDED.kind`,
+      preventionScore: sql`EXCLUDED.prevention_score`,
+      citations: sql`EXCLUDED.citations`,
       updatedAt: sql`now()`,
     },
   })

@@ -1,6 +1,6 @@
 import { HexHeatmap, type HexCell } from '../../../charts/HexHeatmap/index.js'
 import { RampLegend } from '../../../charts/RampLegend/index.js'
-import { SearchBox } from '../../../components/SearchBox.js'
+import { UniversalSearch } from '../../../components/UniversalSearch.js'
 
 // Home hero: 2-col at desktop (text + heatmap), 1-col under 880px
 // (text above heatmap). The HexHeatmap canvas is intrinsically
@@ -26,8 +26,8 @@ export function HeroSection({ cells, loading }: HeroSectionProps) {
           you can see <em>where</em> and <em>when</em> and <em>how much</em>
           {' '}— not just that ticks live in the woods.
         </p>
-        <div style={{ marginTop: 22, maxWidth: 460 }}>
-          <SearchBox />
+        <div style={{ marginTop: 22, maxWidth: 520 }}>
+          <UniversalSearch />
         </div>
       </div>
 

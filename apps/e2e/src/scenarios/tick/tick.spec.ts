@@ -54,6 +54,20 @@ test.describe('/ticks/[slug]', () => {
     await page.goto('/ticks/this-tick-does-not-exist')
     await expect(page.getByRole('heading', { name: /tick not found/i })).toBeVisible()
   })
+
+  test('renders the techniques section — removal, prevention, and aftercare', async ({
+    page,
+  }) => {
+    await page.goto(`/ticks/${TICK_SLUG}`)
+    const section = page.getByTestId('tick-techniques-section')
+    await expect(section).toBeVisible()
+    // The section either renders one+ rails (the JSON content import is
+    // in place) or surfaces the editorial fallback link to /techniques.
+    const removalRail = section.getByTestId('tick-techniques-removal')
+    const fallback = section.getByTestId('tick-techniques-fallback-link')
+    const railOrFallback = (await removalRail.count()) + (await fallback.count())
+    expect(railOrFallback).toBeGreaterThanOrEqual(1)
+  })
 })
 
 test.describe('/ticks/[slug]/range', () => {

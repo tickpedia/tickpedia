@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   diseasesQuery: vi.fn(),
   wildFactTicksQuery: vi.fn(),
   wildFactsQuery: vi.fn(),
+  tickRemovalTechniquesQuery: vi.fn(),
+  removalTechniquesQuery: vi.fn(),
 }))
 
 vi.mock('../../../lib/beam.js', () => ({
@@ -32,6 +34,8 @@ vi.mock('../../../lib/beam.js', () => ({
     diseases: { query: mocks.diseasesQuery },
     wildFactTicks: { query: mocks.wildFactTicksQuery },
     wildFacts: { query: mocks.wildFactsQuery },
+    tickRemovalTechniques: { query: mocks.tickRemovalTechniquesQuery },
+    removalTechniques: { query: mocks.removalTechniquesQuery },
   },
 }))
 
@@ -43,6 +47,8 @@ const {
   diseasesQuery,
   wildFactTicksQuery,
   wildFactsQuery,
+  tickRemovalTechniquesQuery,
+  removalTechniquesQuery,
 } = mocks
 
 import { TickPage } from '../TickPage.js'
@@ -58,6 +64,10 @@ describe('TickPage', () => {
     wildFactsQuery.mockReset()
     wildFactTicksQuery.mockResolvedValue({ rows: [] })
     wildFactsQuery.mockResolvedValue({ rows: [] })
+    tickRemovalTechniquesQuery.mockReset()
+    removalTechniquesQuery.mockReset()
+    tickRemovalTechniquesQuery.mockResolvedValue({ rows: [] })
+    removalTechniquesQuery.mockResolvedValue({ rows: [] })
     document.title = ''
     document.head.querySelectorAll('link[rel="canonical"]').forEach((n) => n.remove())
     document.head.querySelectorAll('meta[name="description"]').forEach((n) => n.remove())

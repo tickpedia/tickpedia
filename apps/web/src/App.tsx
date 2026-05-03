@@ -29,7 +29,7 @@ import { AboutPage } from './pages/meta/AboutPage.js'
 import { SourcesPage } from './pages/meta/SourcesPage.js'
 import { ContributePage } from './pages/meta/ContributePage.js'
 import { PageHeader, Footer } from './pages/shared/index.js'
-import { SearchBox } from './components/SearchBox.js'
+import { UniversalSearch } from './components/UniversalSearch.js'
 
 // Pathname-driven router. SPA — every path lives in one bundle, the
 // router below picks the page off `window.location.pathname` and the
@@ -150,7 +150,7 @@ function NotFound({ currentPath }: { currentPath: string }) {
           <a href="/">Tickpedia home</a>.
         </p>
         <div style={{ marginTop: 24, maxWidth: 560 }}>
-          <SearchBox />
+          <UniversalSearch autoFocus />
         </div>
       </section>
       <Footer />

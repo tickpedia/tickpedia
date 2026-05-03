@@ -1,14 +1,12 @@
-import type { TechniqueRow } from '../data/useTechnique.js'
+import type { TechniqueRow, TechniqueKind } from '../data/useTechnique.js'
 import type { TechniqueTickRow } from '../data/useTechniqueTicks.js'
 import { pathFor } from '../../../routes/index.js'
 
-// Hero band for /techniques/[slug]. Two columns at desktop:
-// headline column on the left, "Applies to" tick chip rail on the
-// right. No "at-a-glance" stat sidebar — techniques don't have
-// numeric stats.
-//
-// The crest is a typographic monogram (first letter of the title in
-// the serif face, hairline ring) — same shape as the disease hero.
+// Hero band for /techniques/[slug]. Three blocks:
+//   1. Title column with kind eyebrow + (for myth kind) a hard warning banner.
+//   2. Monogram crest.
+//   3. "Applies to" tick chips + (for prevention kind) a 0-10 score scale +
+//      (for any kind) a citations bibliography.
 
 export interface HeroSectionProps {
   technique: TechniqueRow
@@ -17,29 +15,65 @@ export interface HeroSectionProps {
   ticksLoading: boolean
 }
 
+const KIND_EYEBROW: Record<TechniqueKind, string> = {
+  removal: 'Removal · field guidance',
+  prevention: 'Prevention · field guidance',
+  aftercare: 'After-bite guidance',
+  diagnostic: 'Diagnostic · lab path',
+  myth: 'Debunked · do not use',
+}
+
 export function HeroSection({ technique, tickRows, ticksLoading }: HeroSectionProps) {
   const monogramLetter = (technique.title.trim()[0] ?? '?').toUpperCase()
-  const eyebrow = pickEyebrow(technique.slug)
-  const showSourceChip = Boolean(technique.sourceUrl)
+  const eyebrow = KIND_EYEBROW[technique.kind]
+  const isMyth = technique.kind === 'myth'
+  const isPrevention = technique.kind === 'prevention'
 
   return (
     <div className="tp-tech-hero" data-testid="technique-hero">
       <div>
-        <div className="ui eyebrow">{eyebrow}</div>
+        <div
+          className="ui eyebrow"
+          data-testid="technique-eyebrow"
+          data-kind={technique.kind}
+          style={isMyth ? { color: 'var(--accent)' } : undefined}
+        >
+          {eyebrow}
+        </div>
         <h1 className="tp-serif">{technique.title}</h1>
         {technique.oneLiner && <p className="tp-serif lede">{technique.oneLiner}</p>}
-        {showSourceChip && technique.sourceUrl && (
-          <div className="ui chips" style={{ marginTop: 14 }}>
-            <a
-              className="tp-chip tp-chip-link"
-              href={technique.sourceUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              title={`External source: ${technique.sourceUrl}`}
+
+        {isMyth && (
+          <div
+            className="hairline"
+            data-testid="technique-myth-banner"
+            role="alert"
+            style={{
+              marginTop: 14,
+              padding: '12px 14px',
+              background: 'rgba(196, 28, 30, 0.06)',
+              borderColor: 'var(--accent)',
+              borderRadius: 6,
+            }}
+          >
+            <div
+              className="ui eyebrow"
+              style={{ color: 'var(--accent)', marginBottom: 4 }}
             >
-              Source · {hostnameFor(technique.sourceUrl)}
-            </a>
+              Do not use
+            </div>
+            <p
+              className="tp-serif"
+              style={{ fontSize: 14, lineHeight: 1.5, margin: 0, color: 'var(--ink)' }}
+            >
+              CDC and the tick-borne disease literature warn against this. The
+              steps below explain why and what to do instead.
+            </p>
           </div>
+        )}
+
+        {isPrevention && technique.preventionScore !== null && (
+          <PreventionScoreScale score={technique.preventionScore} />
         )}
       </div>
 
@@ -84,18 +118,92 @@ export function HeroSection({ technique, tickRows, ticksLoading }: HeroSectionPr
             </div>
           </>
         )}
+
+        {technique.citations.length > 0 && (
+          <CitationsBlock citations={technique.citations} />
+        )}
       </aside>
     </div>
   )
 }
 
-function pickEyebrow(slug: string): string {
-  if (slug === 'fine-tipped-tweezers') return 'Removal · primary method'
-  if (slug.startsWith('when-')) return 'Field guidance'
-  if (slug.startsWith('permethrin')) return 'Prevention · clothing treatment'
-  if (slug.includes('tick-tubes')) return 'Prevention · environmental'
-  if (slug.includes('saving-the-tick')) return 'After-bite guidance'
-  return 'Field guidance'
+function CitationsBlock({ citations }: { citations: readonly string[] }) {
+  return (
+    <div data-testid="technique-citations" style={{ marginTop: 18 }}>
+      <div className="ui eyebrow" style={{ marginBottom: 8 }}>
+        Sources
+      </div>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+        {citations.map((url) => (
+          <li key={url}>
+            <a
+              className="tp-chip tp-chip-link"
+              href={url}
+              target="_blank"
+              rel="noreferrer noopener"
+              title={url}
+              style={{ display: 'inline-block', maxWidth: '100%' }}
+            >
+              {hostnameFor(url)}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function PreventionScoreScale({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(10, score))
+  const label =
+    clamped >= 8
+      ? 'High impact'
+      : clamped >= 5
+        ? 'Moderate impact'
+        : clamped >= 2
+          ? 'Low impact'
+          : 'Marginal'
+  return (
+    <div
+      data-testid="technique-prevention-score"
+      data-score={clamped}
+      style={{ marginTop: 18 }}
+    >
+      <div className="ui eyebrow" style={{ marginBottom: 6 }}>
+        Prevention impact · {label}
+      </div>
+      <div
+        role="img"
+        aria-label={`Prevention impact ${clamped} out of 10`}
+        style={{
+          display: 'flex',
+          gap: 4,
+          alignItems: 'center',
+        }}
+      >
+        {Array.from({ length: 10 }, (_, i) => (
+          <span
+            key={i}
+            data-testid={`pscore-segment-${i + 1}`}
+            data-active={i < clamped ? 'on' : 'off'}
+            style={{
+              width: 18,
+              height: 8,
+              borderRadius: 2,
+              background:
+                i < clamped ? 'var(--accent)' : 'var(--rule)',
+            }}
+          />
+        ))}
+        <span
+          className="mono"
+          style={{ marginLeft: 8, fontSize: 11, color: 'var(--muted)' }}
+        >
+          {clamped} / 10
+        </span>
+      </div>
+    </div>
+  )
 }
 
 function hostnameFor(rawUrl: string): string {

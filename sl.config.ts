@@ -167,6 +167,16 @@ export default defineConfig({
         title: { type: 'text', searchable: { weight: 3 } },
         oneLiner: { type: 'text', from: 'one_liner', searchable: { weight: 2 } },
         steps: { type: 'text', searchable: { weight: 2 } },
+        // `kind` is searchable so the /techniques page can chip-filter
+        // ("show me preventions") and the universal-search renderer can
+        // group results by trait without a second roundtrip.
+        kind: { type: 'text', searchable: true },
+        // 0-10 — query-only. Used for sorting prevention rails on tick
+        // pages by impact.
+        preventionScore: { type: 'number', from: 'prevention_score' },
+        // Multi-source bibliography. Searchable so a user typing "EPA"
+        // surfaces the EPA-cited techniques.
+        citations: { type: 'text', array: true, searchable: { weight: 1 } },
         sourceUrl: { type: 'text', from: 'source_url' },
         createdAt: { type: 'date', from: 'created_at' },
         updatedAt: { type: 'date', from: 'updated_at' },

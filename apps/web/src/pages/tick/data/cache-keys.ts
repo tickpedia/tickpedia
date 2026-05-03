@@ -18,3 +18,7 @@ export function tickRangeCacheKey(tickId: number): string {
 export function tickDiseasesCacheKey(tickId: number): string {
   return `tickDiseases:${tickId}`
 }
+
+export function tickTechniquesCacheKey(tickId: number): string {
+  return `tickTechniques:${tickId}`
+}
