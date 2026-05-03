@@ -49,10 +49,12 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     stdout: 'pipe',
     stderr: 'pipe',
-    // 5 minutes — the prerender pass writes ~3000 county pages
-    // alongside every other static URL; ~60-90s on a warm tenant,
-    // longer when SemiLayer caches are cold. Preview-only is seconds.
-    timeout: skipBuild ? 30_000 : 300_000,
+    // 10 minutes — the build chain writes ~4000 prerendered HTMLs
+    // (~4m on CI runners) plus ~900 OG cards (~30s) plus the sitemap
+    // and alias stubs. Local runs land near 6 minutes; GitHub runners
+    // need the full headroom or webServer wait times out mid-build.
+    // Preview-only is seconds.
+    timeout: skipBuild ? 30_000 : 600_000,
     cwd: resolve(import.meta.dirname, '..', '..'),
     env: {
       // Anything the preview server needs at runtime goes here.
