@@ -19,10 +19,16 @@ import {
   listCanonicalUrls,
   type CanonicalUrl,
 } from '../src/routes/canonical-urls.js'
-import { URL_PATTERNS } from '../src/routes/contract.js'
+import { URL_PATTERNS, type EntityKind } from '../src/routes/contract.js'
 import { renderSitemap } from '../src/routes/sitemap.js'
 
 const DEFAULT_ORIGIN = 'https://tickpedia.com'
+
+// Kinds we deliberately keep out of the sitemap. `search` is disallowed
+// in robots.txt and serves dynamic results; `not-found` is a noindex
+// surface. Either appearing in the sitemap would invite Google to index
+// them as if they were destination pages.
+const NOINDEX_KINDS = new Set<EntityKind>(['search', 'not-found'])
 
 async function main(): Promise<void> {
   const apiKey = process.env.NEXT_PUBLIC_SEMILAYER_PUBLIC_KEY
@@ -45,14 +51,17 @@ async function main(): Promise<void> {
     mode = 'full'
   }
 
+  const indexable = urls.filter((u) => !NOINDEX_KINDS.has(u.kind))
+
   const startedAt = Date.now()
-  const xml = renderSitemap(urls, { origin })
+  const xml = renderSitemap(indexable, { origin })
   const outPath = resolve(import.meta.dirname, '..', 'dist', 'sitemap.xml')
   await writeFile(outPath, xml, 'utf8')
 
   const tookMs = Date.now() - startedAt
   console.log(
-    `✓ wrote ${urls.length} URLs to dist/sitemap.xml in ${tookMs}ms (origin ${origin}, ${mode})`,
+    `✓ wrote ${indexable.length} URLs to dist/sitemap.xml in ${tookMs}ms ` +
+      `(origin ${origin}, ${mode}; ${urls.length - indexable.length} noindex kind(s) excluded)`,
   )
 }
 

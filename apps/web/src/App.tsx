@@ -34,8 +34,8 @@ import { FactPage } from './pages/fact/FactPage.js'
 import { AboutPage } from './pages/meta/AboutPage.js'
 import { SourcesPage } from './pages/meta/SourcesPage.js'
 import { ContributePage } from './pages/meta/ContributePage.js'
-import { PageHeader, Footer } from './pages/shared/index.js'
-import { UniversalSearch } from './components/UniversalSearch.js'
+import { SearchPage } from './pages/search/SearchPage.js'
+import { NotFoundPage } from './pages/notfound/NotFoundPage.js'
 
 // Pathname-driven router. SPA — every path lives in one bundle, the
 // router below picks the page off `window.location.pathname` and the
@@ -136,46 +136,13 @@ function RouteSwitch({ path, matched }: { path: string; matched: MatchedRoute | 
     if (matched.kind === 'about') return <AboutPage />
     if (matched.kind === 'sources') return <SourcesPage />
     if (matched.kind === 'contribute') return <ContributePage />
+    if (matched.kind === 'search') return <SearchPage />
+    if (matched.kind === 'not-found') return <NotFoundPage />
   }
-  // Unmatched URL — show a "not found" panel that still surfaces a
-  // search box so the user can pivot. The previous LegacyHome stub
-  // doubled as the fallback; now that the real HomePage owns `/`, the
-  // fallback is its own thing.
-  return <NotFound currentPath={path} />
-}
-
-function NotFound({ currentPath }: { currentPath: string }) {
-  return (
-    <div className="tp-page" data-testid="not-found">
-      <PageHeader />
-      <section style={{ padding: '64px 32px 28px' }}>
-        <div className="ui eyebrow">404</div>
-        <h1
-          className="tp-serif"
-          style={{
-            fontSize: 'clamp(40px, 6vw, 64px)',
-            lineHeight: 1.02,
-            letterSpacing: '-0.025em',
-            margin: '8px 0 12px',
-          }}
-        >
-          Not on the map.
-        </h1>
-        <p
-          className="tp-serif"
-          style={{ fontSize: 18, color: 'var(--ink-2)', maxWidth: 560 }}
-        >
-          <code className="mono">{currentPath}</code> isn't a route we
-          recognize. Try the search, or head back to{' '}
-          <a href="/">Tickpedia home</a>.
-        </p>
-        <div style={{ marginTop: 24, maxWidth: 560 }}>
-          <UniversalSearch autoFocus />
-        </div>
-      </section>
-      <Footer />
-    </div>
-  )
+  // Unmatched URL — render the canonical not-found surface. The page's
+  // canonical link points at /404 so any indexed not-found URL
+  // consolidates onto one (noindexed) page.
+  return <NotFoundPage currentPath={path} />
 }
 
 function useLocationPath(override?: string): string {

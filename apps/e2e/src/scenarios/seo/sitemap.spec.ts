@@ -43,6 +43,17 @@ test.describe('seo · sitemap.xml', () => {
     }
   })
 
+  test('excludes noindex kinds — /search + /404 must not appear', async ({ request }) => {
+    const res = await request.get('/sitemap.xml')
+    const body = await res.text()
+    expect(body, 'sitemap should not list /search').not.toContain(
+      '<loc>https://tickpedia.com/search</loc>',
+    )
+    expect(body, 'sitemap should not list /404').not.toContain(
+      '<loc>https://tickpedia.com/404</loc>',
+    )
+  })
+
   test('uses absolute URLs (Google rejects sitemap entries with relative locs)', async ({ request }) => {
     const res = await request.get('/sitemap.xml')
     const body = await res.text()
